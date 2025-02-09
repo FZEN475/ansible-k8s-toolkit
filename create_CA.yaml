@@ -1,0 +1,68 @@
+---
+- name: Check CA
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  with_items:
+    - "{{ ca.path }}{{ ca.name }}.csr"
+    - "{{ ca.path }}{{ ca.name }}-key.pem"
+    - "{{ ca.path }}{{ ca.name }}.pem"
+  register: file
+
+- name: Check all ca files exists
+  set_fact:
+    root_cert: "{{ file | community.general.json_query('results[*].stat.exists') }}"
+
+- name: Create CA directory (CA absent)
+  ansible.builtin.file:
+    path: "{{ ca.path }}"
+    state: directory
+  when: false in root_cert
+
+- name: Generate private key for CA (CA absent)
+  community.crypto.openssl_privatekey:
+    path: "{{ ca.path }}{{ ca.name }}-key.pem"
+    type: RSA
+    size: 4096
+    state: present
+    force: True
+  when: false in root_cert
+
+- name: Generate CSR for CA (CA absent)
+  community.crypto.openssl_csr:
+    path: "{{ ca.path }}{{ ca.name }}.csr"
+    privatekey_path: "{{ ca.path }}{{ ca.name }}-key.pem"
+    common_name: ca
+    organization_name: "Etcd CA"
+    basic_constraints:
+      - CA:TRUE
+      - pathlen:1
+    basic_constraints_critical: True
+    key_usage:
+      - keyCertSign
+      - digitalSignature
+    key_usage_critical: True
+    force: True
+  when: false in root_cert
+
+- name: Generate self-signed CA certificate (CA absent)
+  community.crypto.x509_certificate:
+    path: "{{ ca.path }}{{ ca.name }}.crt"
+    privatekey_path: "{{ ca.path }}{{ ca.name }}-key.pem"
+    csr_path: "{{ ca.path }}{{ ca.name }}.csr"
+    provider: selfsigned
+    force: True
+  when: false in root_cert
+
+- name: Convert crt X.509 certificate to pem format (CA absent)
+  community.crypto.x509_certificate_convert:
+    src_path: "{{ ca.path }}{{ ca.name }}.crt"
+    dest_path: "{{ ca.path }}{{ ca.name }}.pem"
+    format: pem
+  when: false in root_cert
+
+- name: ---
+  ansible.builtin.include_tasks: /source/playbooks/library/create_chain.yaml
+  vars:
+    item_renew: "{{ renew }}"
+    path_ca: "{{ ca }}"
+  with_items: "{{ list }}"
