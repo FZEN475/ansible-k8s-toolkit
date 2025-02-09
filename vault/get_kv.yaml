@@ -1,0 +1,37 @@
+
+# variables
+# namespace
+# resource - app-name, deploy, etc.
+# name - имя секрета и подкаталога в vault
+# sa - ServiceAccount
+# list - имя ключа
+# template - формат вывода секрета в файл. Пример:
+#  template: !unsafe "inline:/nfoo {{ .username }}:{{ .password }}:{{ .secret }} bar"
+
+- name: Ключи секретов.
+  set_fact:
+    keys: ' "{{ item.key }}": "{{ item.value }}" '
+  register: keys_result
+  with_items: "{{ list }}"
+
+- name: Ресурсы helm
+  set_fact:
+    helm_resource: |
+      
+      curl -k --cacert /tmp/certs/ca.crt \
+      --header "X-Vault-Token: $(cat /tmp/token)" \
+      --request PUT \
+      --data '{"policy":"path \"{{ namespace }}/data/{{ resource }}/*\" {capabilities = [ \"read\"]}"}' \
+      https://vault.secrets.svc:8200/v1/sys/policies/acl/{{ resource }};
+      
+      curl -k --cacert /tmp/certs/ca.crt \
+      --header "X-Vault-Token: $(cat /tmp/token)" \
+      --request POST \
+      --data '{"policies": ["{{ resource }}"],"bound_service_account_names": ["{{ sa }}"],"bound_service_account_namespaces":["{{ namespace }}"]}' \
+      https://vault.secrets.svc:8200/v1/auth/kubernetes/role/{{ resource }};
+      
+      curl -k --cacert /tmp/certs/ca.crt \
+      --header "X-Vault-Token: $(cat /tmp/token)" \
+      --request POST \
+      --data '{ "data": { {{ keys_result.results | map(attribute='ansible_facts.keys') | join(',') }} } }' \
+      https://vault.secrets.svc:8200/v1/{{ namespace }}/data/{{ resource }}/{{ name }};

@@ -1,0 +1,40 @@
+---
+- name: Creates .ssh directory for root
+  ansible.builtin.file:
+    path: /root/.ssh
+    state: directory
+  when: refresh is true
+
+- name: Remove file (delete file)
+  ansible.builtin.file:
+    path: /root/.ssh/git_key
+    state: absent
+  ignore_errors: True
+  when: refresh is true
+
+- name: Check key
+  ansible.builtin.stat:
+    path: "/root/.ssh/{{ key_name }}"
+  register: key_data
+
+- name: Copy from secrets
+  ansible.builtin.copy:
+    src: "/run/secrets/id_ed25519"
+    dest: "/root/.ssh/git_key"
+  when: key_data.stat.exists is false
+
+- name: Set key permissions
+  ansible.builtin.file:
+    dest: /root/.ssh/git_key
+    mode: '0600'
+
+- name: Clone of a single branch
+  ansible.builtin.git:
+    repo: "{{ git_url }}"
+    dest: "{{ dest }}"
+    single_branch: yes
+    version: "{{ branch }}"
+    key_file: "/root/.ssh/{{ key_name }}"
+    accept_hostkey: yes
+    force: yes
+  register: git_dump

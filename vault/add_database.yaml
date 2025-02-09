@@ -1,0 +1,320 @@
+
+# variables:
+# namespace - пространство имён в котором изначально хранится секрет
+# resource - app-name, deploy, etc.
+# db_user - имя пользователя в базе
+# cluster_access - SecretStore/ClusterSecretStore
+# delete - удаление
+
+#  Создать job со скриптом создающим в vault:
+# 1) подключение к базе со стандартным паролем.
+#curl --header "X-Vault-Token: $VAULT_TOKEN" --request POST \
+#                                --data @payload.json \
+#                                $VAULT_ADDR/v1/database/config/postgresql
+#"payload.json"
+#  tee payload.json <<EOF
+# {
+#    "plugin_name": "postgresql-database-plugin",
+#    "connection_url": "postgresql://{{username}}:{{password}}@postgresql-primary.storage.svc/postgres",
+#    "allowed_roles": "переменная db_user",
+#    "username": "postgres",
+#    "password": "переменная пароля"
+#  }
+# 2) подключение к базе со стандартным паролем.
+#  tee payload.json <<EOF
+#  {
+#    "db_name": "postgresql",
+#    "username": "переменная db_user",
+#    "rotation_period": 1d
+#  }
+#  EOF
+#curl --header "X-Vault-Token: $VAULT_TOKEN" \
+#  --request POST --data @payload.json \
+#  $VAULT_ADDR/v1/database/static-roles/[переменная db_user]
+# 3) Добавить в политику resource возможность чтения секрета базы данных
+#  path "database/static-creds/[переменная db_user]" {capabilities = ["read"]}
+#  Вероятно, для этой политики уже есть другая запись и их нужно както объединить!!!!
+#  curl -k --cacert /tmp/certs/ca.crt \
+#--header "X-Vault-Token: $(cat /tmp/token)" \
+#  --request PUT \
+#  --data "{\"policy\":\"path \\\"$1/data/$2/*\\\" {capabilities = [\\\"read\\\"]}\"}" \
+#  https://vault.secrets.svc:8200/v1/sys/policies/acl/"$2";
+
+# 4) Привязать политику к сервисному аккаунту
+#  curl -k --cacert /tmp/certs/ca.crt \
+#--header "X-Vault-Token: $(cat /tmp/token)" \
+#  --request POST \
+#--data "{\"policies\": [\"$2\"],\"bound_service_account_names\":$sa_tmp,\"bound_service_account_namespaces\":$ns_tmp}" \
+#  https://vault.secrets.svc:8200/v1/auth/kubernetes/role/"$2";
+
+# 5) Принудительно ротировать пароль
+
+
+
+
+
+#- name: Удаление ConfigMap job-add-kv
+#  kubernetes.core.k8s:
+#    state: absent
+#    definition:
+#      apiVersion: v1
+#      kind: ConfigMap
+#      metadata:
+#        name: job-add-kv
+#        namespace: secrets
+#
+#- name: ConfigMap job-add-kv
+#  kubernetes.core.k8s:
+#    state: present
+#    definition:
+#      apiVersion: v1
+#      kind: ConfigMap
+#      metadata:
+#        name: job-add-kv
+#        namespace: secrets
+#      data:
+#        job_add_kv.sh: "{{ lookup('ansible.builtin.file', '/ansible_root/config/job_add_kv.sh') }}"
+
+#- name: Удаление Job создание секретов
+#  kubernetes.core.k8s:
+#    state: absent
+#    wait: true
+#    definition:
+#      apiVersion: batch/v1
+#      kind: Job
+#      metadata:
+#        name: "init-secrets-db-{{ namespace }}-{{ resource }}-{{ name }}"
+#        namespace: secrets
+
+
+#- name: Job создание секретов
+#  kubernetes.core.k8s:
+#    state: present
+#    wait: true
+#    definition:
+#      apiVersion: batch/v1
+#      kind: Job
+#      metadata:
+#        name: "init-secrets-db-{{ namespace }}-{{ resource }}-{{ name }}"
+#        namespace: secrets
+#      spec:
+#        backoffLimit: 5
+#        ttlSecondsAfterFinished: 120
+#        template:
+#          spec:
+#            containers:
+#              - name: post-start
+#                image: "curlimages/curl"
+#                command: [sh, -c]
+#                args:
+#                  - "/tmp/job_add_kv.sh {{ namespace }} {{ resource }} {{ resource }}-sa {{ name }} "
+#                env:
+#                  - name: LIST
+#                    value: "{{ keys_result.results | map(attribute='ansible_facts.keys') | join(',') }}"
+#                volumeMounts:
+#                  - mountPath: "/tmp/certs/"
+#                    name: cm-vault-tls
+#                    readOnly: true
+#                  - mountPath: "/tmp/token"
+#                    name: vault
+#                    subPath: token
+#                    readOnly: true
+#                  - mountPath: "/tmp/job_add_kv.sh"
+#                    name: job-add-kv
+#                    subPath: job_add_kv.sh
+#                    readOnly: true
+#            restartPolicy: Never
+#            volumes:
+#              - name: cm-vault-tls
+#                secret:
+#                  secretName: cm-vault-tls
+#              - name: vault
+#                secret:
+#                  secretName: vault
+#                  items:
+#                    - key: token
+#                      path: token
+#                      mode: 0666
+#              - name: job-add-kv
+#                configMap:
+#                  name: job-add-kv
+#                  items:
+#                    - key: job_add_kv.sh
+#                      path: job_add_kv.sh
+#                      mode: 0777
+#  when: delete is false and update is true
+
+- name: Create "{{ namespace }}" namespace
+  kubernetes.core.k8s:
+    name: "{{ namespace }}"
+    api_version: v1
+    kind: Namespace
+    state: present
+  when: delete is false
+
+- name: add label to existing namespace
+  kubernetes.core.k8s:
+    state: patched
+    kind: Namespace
+    name: "{{ namespace }}"
+    definition:
+      metadata:
+        labels:
+          bundle.ca.vault: "true"
+  when: delete is false
+
+- name: Создание sa
+  kubernetes.core.k8s:
+    state: present
+    wait: true
+    definition:
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: "{{ resource }}-sa"
+        namespace: "{{ namespace }}"
+  when: delete is false
+
+- name: Создание Bundle с сертификатом vault
+  kubernetes.core.k8s:
+    state: present
+    wait: true
+    definition:
+      apiVersion: trust.cert-manager.io/v1alpha1
+      kind: Bundle
+      metadata:
+        name: "cm-vault-tls-ca"
+      spec:
+        sources:
+          - useDefaultCAs: false
+          - secret:
+              name: "cm-vault-tls"
+              key: "ca.crt"
+        target:
+          secret:
+            key: "ca.crt"
+          additionalFormats:
+            jks:
+              key: "bundle.jks"
+            pkcs12:
+              key: "bundle.p12"
+          namespaceSelector:
+            matchLabels:
+              bundle.ca.vault: "true"
+
+- name: Создание ss
+  kubernetes.core.k8s:
+    state: present
+    wait: true
+    definition:
+      apiVersion: external-secrets.io/v1beta1
+      kind: SecretStore
+      metadata:
+        name: "{{ resource }}-db-ss"
+        namespace: "{{ namespace }}"
+      spec:
+        retrySettings:
+          retryInterval: "10s"
+        provider:
+          vault:
+            server: "https://vault.secrets.svc:8200"
+            version: "v1"
+            path: "database"
+            caProvider:
+              type: "Secret"
+              name: "cm-vault-tls-ca"
+              key: "ca.crt"
+            auth:
+              kubernetes:
+                mountPath: "kubernetes"
+                role: "{{ resource }}"
+                # Optional service account reference
+                serviceAccountRef:
+                  name: "{{ resource }}-sa"
+  when: delete is false and cluster_access is false
+
+- name: Создание ss
+  kubernetes.core.k8s:
+    state: present
+    wait: true
+    definition:
+      apiVersion: external-secrets.io/v1beta1
+      kind: ClusterSecretStore
+      metadata:
+        name: "{{ resource }}-db-css"
+      spec:
+        retrySettings:
+          retryInterval: "10s"
+        provider:
+          vault:
+            server: "https://vault.secrets.svc:8200"
+            version: "v1"
+            path: "database"
+            caProvider:
+              type: "Secret"
+              name: "cm-vault-tls-ca"
+              namespace: "{{ namespace }}"
+              key: "ca.crt"
+            auth:
+              kubernetes:
+                mountPath: "kubernetes"
+                role: "{{ resource }}"
+                # Optional service account reference
+                serviceAccountRef:
+                  name: "{{ resource }}-sa"
+                  namespace: "{{ namespace }}"
+  when: delete is false and cluster_access is true
+
+
+
+
+
+
+# Удаление секрета
+
+- name: Отключение бандла рассылки ca vault.
+  kubernetes.core.k8s:
+    state: patched
+    kind: Namespace
+    name: "{{ namespace }}"
+    definition:
+      metadata:
+        labels:
+          bundle.secret.vault: ""
+  when: delete is true
+
+- name: Удаление ss
+  kubernetes.core.k8s:
+    state: absent
+    wait: true
+    definition:
+      apiVersion: external-secrets.io/v1beta1
+      kind: SecretStore
+      metadata:
+        name: "{{ resource }}-db-ss"
+        namespace: "{{ namespace }}"
+  when: delete is true and cluster_access is false
+
+- name: Удаление ss
+  kubernetes.core.k8s:
+    state: absent
+    wait: true
+    definition:
+      apiVersion: external-secrets.io/v1beta1
+      kind: ClusterSecretStore
+      metadata:
+        name: "{{ resource }}-db-css"
+  when: delete is true and cluster_access is true
+
+- name: Удаление sa
+  kubernetes.core.k8s:
+    state: absent
+    wait: true
+    definition:
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: "{{ resource }}-sa"
+        namespace: "{{ namespace }}"
+  when: delete is true
+
