@@ -60,8 +60,6 @@
     format: pem
   when: false in root_cert
 
-- debug: msg="{{ renew }}"
-
 - name: ---
   ansible.builtin.include_tasks: /source/playbooks/library/create_chain.yaml
   vars:

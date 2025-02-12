@@ -1,5 +1,10 @@
 ---
 
+- debug: msg="{{ renew }}"
+- debug: msg="{{ ca }}"
+- debug: msg="{{ list }}"
+
+
 - name: Check item cert
   ansible.builtin.stat:
     path: "{{ loop_certs }}"
