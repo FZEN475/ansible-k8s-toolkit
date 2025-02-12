@@ -63,7 +63,7 @@
 - debug: msg="{{ renew }}"
 
 - name: ---
-  ansible.builtin.include_tasks: /ansible_root/playbooks/tasks/_0_utility/cert/_1_check_certs.yaml
+  ansible.builtin.include_tasks: /source/playbooks/library/create_chain.yaml
   vars:
     item_renew: "{{ renew }}"
     path_ca: "{{ ca }}"
