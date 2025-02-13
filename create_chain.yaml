@@ -13,7 +13,7 @@
   register: file
 
 - name: Check all item_cert files exists
-  set_fact:
+  ansible.builtin.set_fact:
     item_cert: "{{ file | community.general.json_query('results[*].stat.exists') }}"
 
 - name: Create item directory (item_cert absent or renew)

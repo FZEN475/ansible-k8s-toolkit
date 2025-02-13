@@ -9,14 +9,16 @@
   register: file
 
 - name: Check all ca files exists
-  set_fact:
+  ansible.builtin.set_fact:
     root_cert: "{{ file | community.general.json_query('results[*].stat.exists') }}"
 
 - name: Create CA directory (CA absent)
   ansible.builtin.file:
     path: "{{ ca.path }}"
     state: directory
+    mode: '0644'
   when: false in root_cert
+
 
 - name: Generate private key for CA (CA absent)
   community.crypto.openssl_privatekey:
@@ -24,7 +26,7 @@
     type: RSA
     size: 4096
     state: present
-    force: True
+    force: true
   when: false in root_cert
 
 - name: Generate CSR for CA (CA absent)
@@ -36,12 +38,12 @@
     basic_constraints:
       - CA:TRUE
       - pathlen:1
-    basic_constraints_critical: True
+    basic_constraints_critical: true
     key_usage:
       - keyCertSign
       - digitalSignature
-    key_usage_critical: True
-    force: True
+    key_usage_critical: true
+    force: true
   when: false in root_cert
 
 - name: Generate self-signed CA certificate (CA absent)
@@ -50,7 +52,7 @@
     privatekey_path: "{{ ca.path }}{{ ca.name }}-key.pem"
     csr_path: "{{ ca.path }}{{ ca.name }}.csr"
     provider: selfsigned
-    force: True
+    force: true
   when: false in root_cert
 
 - name: Convert crt X.509 certificate to pem format (CA absent)
