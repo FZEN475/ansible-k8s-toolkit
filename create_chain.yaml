@@ -13,13 +13,14 @@
   register: file
 
 - name: Check all item_cert files exists
-  set_fact:
+  ansible.builtin.set_fact:
     item_cert: "{{ file | community.general.json_query('results[*].stat.exists') }}"
 
 - name: Create item directory (item_cert absent or renew)
   ansible.builtin.file:
     path: "{{ item.path }}"
     state: directory
+    mode: '0644'
   when: false in item_cert or item_renew is true
 
 - name: Generate item private key (item_cert absent or renew)
@@ -28,7 +29,7 @@
     type: RSA
     size: 4096
     state: present
-    force: True
+    force: true
   when: false in item_cert or item_renew is true
 
 - name: Generate item CSR (error if client config) (item_cert absent or renew)
@@ -76,6 +77,3 @@
     format: pem
   register: tmp
   when: false in item_cert or item_renew is true
-
-
-
