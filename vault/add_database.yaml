@@ -73,7 +73,7 @@
 #        name: job-add-kv
 #        namespace: secrets
 #      data:
-#        add_vault_secret.sh: "{{ lookup('ansible.builtin.file', '/ansible_root/config/add_vault_secret.sh') }}"
+#        add-secret-script.sh: "{{ lookup('ansible.builtin.file', '/ansible_root/config/add-secret-script.sh') }}"
 
 #- name: Удаление Job создание секретов
 #  kubernetes.core.k8s:
@@ -107,7 +107,7 @@
 #                image: "curlimages/curl"
 #                command: [sh, -c]
 #                args:
-#                  - "/tmp/add_vault_secret.sh {{ namespace }} {{ resource }} {{ resource }}-sa {{ name }} "
+#                  - "/tmp/add-secret-script.sh {{ namespace }} {{ resource }} {{ resource }}-sa {{ name }} "
 #                env:
 #                  - name: LIST
 #                    value: "{{ keys_result.results | map(attribute='ansible_facts.keys') | join(',') }}"
@@ -119,9 +119,9 @@
 #                    name: vault
 #                    subPath: token
 #                    readOnly: true
-#                  - mountPath: "/tmp/add_vault_secret.sh"
+#                  - mountPath: "/tmp/add-secret-script.sh"
 #                    name: job-add-kv
-#                    subPath: add_vault_secret.sh
+#                    subPath: add-secret-script.sh
 #                    readOnly: true
 #            restartPolicy: Never
 #            volumes:
@@ -139,8 +139,8 @@
 #                configMap:
 #                  name: job-add-kv
 #                  items:
-#                    - key: add_vault_secret.sh
-#                      path: add_vault_secret.sh
+#                    - key: add-secret-script.sh
+#                      path: add-secret-script.sh
 #                      mode: 0777
 #  when: delete is false and update is true
 
