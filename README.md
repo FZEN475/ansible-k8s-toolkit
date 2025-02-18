@@ -167,13 +167,13 @@ _**Путь к папке шаблонов абсолютный!**_
 * Создание ConfigMap с curl скриптами для Vault.
 * Создание Job выполняющего скрипты.
 * Создание ServiceAccount c доступом к секретам.
-* Создание Bundle с корневым сертификатом Vault
 * Создание SecretStore\ClusterSecretStore.
 * Удаление по надобности.
 ### Variables
-* namespace:string
+* namespace_secret:string
 * resource:string - название проекта.
-* name:string - название секрета.
+* name_secret:string - название секрета.
+* vault_ca:string - секрет с ca.crt vault.
 * cluster_access:bool - SecretStore\ClusterSecretStore.
 * list:object[]
   * key:string
@@ -192,6 +192,7 @@ _**Путь к папке шаблонов абсолютный!**_
     namespace: "default"
     resource: "foo"
     name: "secret"
+    vault_ca: "vault-ca"
     cluster_access: false
     list:
       [
