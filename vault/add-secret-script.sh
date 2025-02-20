@@ -1,10 +1,14 @@
-#!/bin/sh
+#!/bin/ash
 
 echo "$1" # ns
 echo "$2" # res
 echo "$3" # sa
 echo "$4" # name
 echo "$LIST" # list
+
+curl
+
+jq
 
 wget -O /tmp/jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64
 chmod +x /tmp/jq
