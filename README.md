@@ -1,93 +1,239 @@
-# ansible
-
-
-
-## Getting started
-
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitlab.fzen.pro/library/ansible.git
-git branch -M main
-git push -uf origin main
-```
-
-## Integrate with your tools
-
-- [ ] [Set up project integrations](https://gitlab.fzen.pro/library/ansible/-/settings/integrations)
-
-## Collaborate with your team
-
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
+# ansible-library
 ## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+Набор шаблонов для плейбуков ansible.  
+_**Путь к папке шаблонов `/source/playbooks/library/` **_
+---
+## [disk_resize]()
+После изменений размера диска на esxi, требуется применить изменения на NODE.  
+### Example
+```yaml
+- hosts: servers
+  gather_facts: no
+  tasks:
+    - name: Увеличение размера диска до максимального (include_tasks).
+      ansible.builtin.include_tasks:
+        file: /source/playbooks/library/disk_resize.yaml
+```
+---
+## [apt]()
+Обновление репозиториев списком.  
+Добавление gpg ключей списком.  
+Установка пакетов списком.  
+Апгрейд по необходимости.
+### Variables
+* `gpg_key:string[]` - список ссылок на ключи.
+* `repository:string[]` - список ссылок на репозитории.
+* `list:string[]` - список пакетов.
+* `upgrade:bool` - Апгрейд пакетов.
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+### Example
+```yaml
+- name: Install.
+  ansible.builtin.include_tasks: /source/playbooks/library/apt.yaml
+  vars:
+    gpg_key:
+      - "https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key"
+    repository:
+      - "deb https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /"
+    list:
+      - 'kubelet'
+      - 'kubeadm'
+      - 'kubectl'
+    upgrade: false
+```
+---
+## [git_pull]()
+Загрузка репозитория с приватного git.
+Авторизация по ключу.  
+Выбор ветки и папки назначения.
+Ключ авторизации должен находится в /run/secrets/  
+Поиск ключа по имени.
+### Variables
+* `key_name:string` - имя ключа.
+* `refresh:bool` - обновить ключ.
+* `git_url:string` - ссылка (ssh).
+* `branch:string` - ветка.
+* `dest:string` - папка для скачивания.
+### Example
+```yaml
+- name: Clone
+  ansible.builtin.include_tasks: /source/playbooks/library/git_clone.yaml
+  vars:
+    key_name: "git_key"
+    refresh: "false"
+    git_url: "git@github.com:FZEN475/ansible-library.git"
+    branch: "main"
+    dest: "/tmp/"
+```
+## [create_CA]()
+Генерация корневого CA и дочерних (серверных и клиентских) сертификатов списком.  
+* Проверка существующего CA (чтобы не пересоздавать).
+* Создание ключа.
+* Создание запроса на подпись.
+* Подписание и создание crt.
+* Конвертация в pem.
+* Запуск [create_chain]() Для элементов списка.
+### Variables
+* `ca:object` - путь к ca сертификатам.
+  * `path:string` - директория.
+  * `name:string` - название сертификата.
+* `list:object[]` - список дочерних сертификатов.
+  * `path:string` - директория.
+  * `name:string` - название сертификата.
+  * `key_usage:string[]` - назначение.
+  * `extended_key_usage:string[]` - расширенное назначение
+  * `subject_alt_name:string` - список DNS имён и IP
+* `renew:bool` - пересоздание НЕ CA сертификатов.
+### Example
+На примере сертификатов для etcd
+```yaml
+- name: dns_names
+  set_fact:
+    dns_names: "{{ groups.control_all | map('regex_replace', '^(.*)$', 'DNS:\\1-etcd') | join(',') }}"
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+- name: Cert config for etcd and peers
+  set_fact:
+    cert_servers_conf_list: |
+      {{ cert_servers_conf_list|default([]) + [
+        { "path":"/etc/ssl/etcd/","name":loop_hostname,
+          "key_usage":["digitalSignature"],"extended_key_usage":["serverAuth","clientAuth"],
+          "subject_alt_name":"IP:127.0.0.1,IP:192.168.2.2," + dns_names + ",DNS:balancer"
+        },
+        { "path": "/etc/ssl/etcd/","name": (loop_hostname+"-peer"),
+          "key_usage": [ "digitalSignature" ],"extended_key_usage": [ "serverAuth","clientAuth" ],
+          "subject_alt_name": "IP:127.0.0.1,IP:192.168.2.2," + dns_names + ",DNS:balancer" 
+        }]
+      }}
+  loop: "{{ groups.control_all }}"
+  loop_control:
+    label: "{{ loop_hostname }}"
+    loop_var: loop_hostname
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+- name: Add client and balancer certs configs
+  set_fact:
+    cert_all_conf_list: |
+      {{ cert_servers_conf_list|default([]) + [      
+        { "path":"/etc/ssl/etcd/","name":"client",
+          "key_usage":[ "keyEncipherment","dataEncipherment" ],"extended_key_usage":["clientAuth"],
+          "subject_alt_name":""
+        },
+        { "path": "/etc/ssl/balancer/","name": "balancer",
+          "key_usage": [ "digitalSignature" ],"extended_key_usage": [ "serverAuth","clientAuth" ],
+          "subject_alt_name": "IP:127.0.0.1,IP:192.168.2.2," + dns_names + ",DNS:balancer" 
+        }]
+      }}
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+- name: ---
+  ansible.builtin.include_tasks: /source/playbooks/library/create_CA.yaml
+  vars:
+    ca: { "path":"/etc/ssl/etcd/","name":"ca_etcd" }
+    list: "{{ cert_all_conf_list }}"
+    renew: false
+```
+## [create_chain]()
+Создаются сертификаты для каждого элемента списка и подписываются CA.
+* Проверка существующего сертификата.
+* Создание ключа.
+* Создание запроса на подпись.
+* Подписание СФ и создание crt.
+* Конвертация в pem.
+* Если renew = true то создание принудительно.
+### Variables
+* `ca:object` - путь к ca сертификатам.
+  * `path:string` - директория.
+  * `name:string` - название сертификата.
+* `list:object[]` - список дочерних сертификатов.
+  * `path:string` - директория.
+  * `name:string` - название сертификата.
+  * `key_usage:string[]` - назначение.
+  * `extended_key_usage:string[]` - расширенное назначение
+  * `subject_alt_name:string` - список DNS имён и IP
+* `renew:bool` - пересоздание НЕ CA сертификатов.
+### Example
+```yaml
+- name: ---
+  ansible.builtin.include_tasks: /source/playbooks/library/create_chain.yaml
+  vars:
+    item_renew: "true"
+    path_ca: "{ 'path':'/etc/ssl/etcd/','name':'ca_etcd' }"
+  with_items: |
+      [{ "path": "/etc/ssl/server/","name": "server",
+        "key_usage": [ "digitalSignature" ],"extended_key_usage": [ "serverAuth","clientAuth" ],
+        "subject_alt_name": "IP:127.0.0.1,DNS:server" 
+      }]
+```
+## [add_vault_secret]()
+Создание секретов (списком) в [Vault]() и Store, для дальнейшего использования.
+* Создание ConfigMap с curl скриптами для Vault.
+* Создание Job выполняющего скрипты.
+* Создание SecretStore\ClusterSecretStore.
+* Создание ExternalSecrets.
+### Variables
+`Переменные ":*" - обязательные`
+* `ns:string:*` - пространство имён.
+* `resource:string:*` - название проекта.
+* `secret_name:string [default: {{ resource }}-secrets]`- название секрета в kubernetes.
+* `cluster_access:bool` - SecretStore\ClusterSecretStore
+* `sa:string [default: {{ resource }}-sa]` - ServiceAccount, которому разрешен доступ к секретам.
+* `store_name:string [default: {{ resource }}-ss/{{ resource }}-css]` - Имя SecretStore, если требуется получить доступ к существующему секрету.
+* `list:object[]:*` - Список секретов.
+  * `key:string:*` - Ключ секрета в Vault.
+  * `vault:bool` - Создать или обновить секрет в Vault.
+  * `value:string` - Значение секрета.
+  * `secretKey:string [default: key]` - Имя секрета в kubernetes
+  * `path:string [default: {{ ns }}/{{ resource }}/{{ s_name }}]` - путь к секрету в Vault.
+  * `decodingStrategy:string [default: None]` - Метод расшифровки секрета при получении из Vault.
+* `data:object{}` - Шаблон секрета при получении из Vault.
+* `es_type:string [default: Opaque]` - Тип секрета kubernetes.
+### Dependency
+* [cert-manager]()
+* [trust-manager]()
+* [Vault]()
+### Example 1
+Создать секрет в пространстве test1 с шаблоном. 
+```yaml
+- name: secret facts
+  ansible.builtin.set_fact:
+    secret_template1:
+      postgres: !unsafe |
+        postgresql-primary.storage.svc:5432:*:postgres:{{ .postgres }}
+- name: secret facts
+  ansible.builtin.set_fact:
+    secrets1:
+      - { ns: "test1", resource: "test", secret_name: "test-renamed", data: "{{ secret_template1 }}",
+          cluster_access: true, sa: "test-sa", store_name: "test-css", es_type: "Opaque",
+          list: [
+            { "vault": true, "key": "postgres-password", "secretKey": "postgres", 
+              "value": "{{ lookup('ansible.builtin.file', '/run/secrets/pgsql_password') }}",
+              "path": "test/test/test-renamed", "decodingStrategy": "None"
+            },
+            { "vault": true, "key": "replication-password", "secretKey": "replication_postgres",
+              "value": "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_lowercase', 'digits'], length=8) | b64encode }}",
+              "path": "test/test/test-renamed", "decodingStrategy": "Base64"
+            }
+          ]}
+```
+### Example 2
+Получить существующий секрет в пространстве test2 из Vault. У ServiceAccount есть дополнительный доступ к секретам базы данных.
+```yaml
+- name: secret facts
+  ansible.builtin.set_fact:
+    secret_template2:
+      postgres: !unsafe |
+        {{ .postgres }}
+      database-static: !unsafe |
+        {{ .database_static }}
+- name: secret facts
+  ansible.builtin.set_fact:
+    secrets1:
+      - { ns: "test2", resource: "test", secret_name: "test-renamed", data: "{{ secret_template2 }}",
+          sa: "test-sa", store_name: "test-css", es_type: "kubernetes.io/dockerconfigjson",
+          list: [
+            { "vault": true, "key": "postgres-password", "secretKey": "postgres", 
+              "path": "test/test/test-renamed", "decodingStrategy": "None"
+            },
+            { "vault": true, "key": "database-static", "secretKey": "database_static",
+              "path": "database/static-creds/test"
+            }
+          ]}
+```
