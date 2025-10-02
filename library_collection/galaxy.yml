@@ -1,0 +1,11 @@
+namespace: common
+name: library
+version: "1.0.0"
+readme: README.md
+authors:
+  - "Your Name firzen475@gmail.com"
+description: "Всякая полезная штука."
+license:
+  - "MIT"
+repository: "https://github.com/FZEN475/ansible-library.git"
+
