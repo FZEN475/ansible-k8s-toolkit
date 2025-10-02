@@ -1,3 +1,0 @@
-
-- name: Выполнение простой команды на хосте
-  ansible.builtin.command: echo "Ansible из библиотеки!"
