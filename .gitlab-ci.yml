@@ -21,3 +21,8 @@ include:
 variables:
   CI_DEBUG_TRACE: "true"
 
+stages:
+  - build
+  - push
+  - auto-merge
+  - auto-release
