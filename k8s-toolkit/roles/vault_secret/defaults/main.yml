@@ -1,0 +1,13 @@
+---
+vault_access:
+  server_url: "https://example.com:8200"
+  kubernetes_service_account: "vault-sa"
+  role_with_access: "vault-manager"
+#  jwt_mount_point: "jwt"
+
+client_access:
+  role_name: "example-role"
+  kubernetes_service_account: "example-sa"
+  kubernetes_service_account_namespace: "default"
+  policy_list: []
+

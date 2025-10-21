@@ -1,0 +1,159 @@
+
+- name: Validate CSR parameters with debug
+  vars:
+    allowed_usages: ['web-ca', 'web-server', 'web-client']
+    allowed_types: ['RSA', 'EC', 'ECDSA', 'ED25519']
+    allowed_type_rsa_size: [2048, 3072, 4096]
+    allowed_type_ecdsa_size: ['prime256v1', 'secp384r1', 'secp521r1']
+  block:
+    - name: Validate cert.name and cert.path
+      block:
+        - assert:
+            that:
+              - cert.name is defined
+              - cert.path is defined
+            fail_msg: "Ошибка: имя и директория ключа должны быть заданы!"
+            success_msg: "cert.name и cert.path проверены успешно."
+    - name: Validate cert.usage
+      block:
+        - assert:
+            that:
+              - cert.usage is defined and cert.usage in allowed_usages
+            fail_msg: "Ошибка: недопустимое значение cert.usage. Допустимые: web-ca, web-server, web-client."
+            success_msg: "cert.usage проверен успешно."
+    - name: Validate general cert and CA parameters
+      block:
+        - assert:
+            that:
+              - cert.name is defined and cert.key_type in allowed_types
+              - (cert.key_type == 'RSA' and cert.key_size in allowed_type_rsa_size) or
+                (cert.key_type in ['EC', 'ECDSA'] and cert.key_size in allowed_type_ecdsa_size) or
+                (cert.key_type == 'ED25519')
+            fail_msg: "Неподдерживаемый тип ключа или размер. Для RSA допустимые размеры: 2048, 3072, 4096. Для EC: prime256v1, secp384r1, secp521r1. Для ED25519 размер ключа игнорируется."
+            success_msg: "Тип ключа и размер проверены успешно."
+
+    - name: Validate ownca
+      when: cert.usage != 'web-ca'
+      block:
+        - assert:
+            that:
+              - cert.ownca_path is defined and (cert.ownca_path | trim | length) > 0
+              - cert.ownca_privatekey_path is defined and (cert.ownca_privatekey_path | trim | length) > 0
+            fail_msg: "Ошибка: поля cert.ownca_path и cert.ownca_privatekey_path должны быть заданы и непустые"
+            success_msg: "Поля cert.ownca_path и cert.ownca_privatekey_path проверены успешно."
+            
+        - name: Check if ownca file exists
+          stat:
+            path: "{{ cert.ownca_path }}"
+          register: ownca_file
+    
+        - name: Check if ownca private key file exists
+          stat:
+            path: "{{ cert.ownca_privatekey_path }}"
+          register: ownca_privatekey_file
+            
+        - assert:
+            that:
+              - ownca_file.stat.exists
+              - ownca_privatekey_file.stat.exists
+            fail_msg: "Ошибка: файлы cert.ownca_path или cert.ownca_privatekey_path не существуют"
+            success_msg: "Файлы cert.ownca_path и cert.ownca_privatekey_path существуют"
+
+    - name: Validate ownca
+      when: cert.usage != 'web-ca'
+      block:
+        - assert:
+            that:
+              - cert.common_name is defined and (cert.common_name | trim | length) > 0
+            fail_msg: "Ошибка: поле cert.common_name обязательно"
+            success_msg: "Поле cert.common_name проверено успешно."
+    - name: Validate ownca
+      when: cert.usage != 'web-ca'
+      block:
+        - assert:
+            that:
+              - cert.common_name is defined and (cert.common_name | trim | length) > 0
+            fail_msg: "Ошибка: поле cert.common_name обязательно"
+            success_msg: "Поле cert.common_name проверено успешно."
+
+
+- name: Формирование списка соответствий
+  set_fact:
+    privatekey_path_map:
+      web-ca: "{{ cert.path }}/{{ cert.name }}{{ cert.key_type | library.k8s_toolkit.key_suffix }}-ca.key"
+      web-server: "{{ cert.path }}/{{ cert.name }}-{{ cert.common_name | default('') }}{{ cert.key_type | library.k8s_toolkit.key_suffix }}-key.pem"
+      web-client: "{{ cert.path }}/{{ cert.name }}-{{ cert.common_name | default('') }}{{ cert.key_type | library.k8s_toolkit.key_suffix }}-key.pem"
+    csr_path_map:
+      web-ca: "{{ cert.path }}/{{ cert.name }}{{ cert.key_type | library.k8s_toolkit.key_suffix }}-ca.csr"
+      web-server: "{{ cert.path }}/{{ cert.name }}-{{ cert.common_name | default('') }}{{ cert.key_type | library.k8s_toolkit.key_suffix }}.csr"
+      web-client: "{{ cert.path }}/{{ cert.name }}-{{ cert.common_name | default('') }}{{ cert.key_type | library.k8s_toolkit.key_suffix }}.csr"
+    cert_path_map:
+      web-ca: "{{ cert.path }}/{{ cert.name }}{{ cert.key_type | library.k8s_toolkit.key_suffix }}-ca.crt"
+      web-server: "{{ cert.path }}/{{ cert.name }}-{{ cert.common_name | default('') }}{{ cert.key_type | library.k8s_toolkit.key_suffix }}.crt"
+      web-client: "{{ cert.path }}/{{ cert.name }}-{{ cert.common_name | default('') }}{{ cert.key_type | library.k8s_toolkit.key_suffix }}.crt"
+    pem_path_map:
+      web-ca: ""
+      web-server: "{{ cert.path }}/{{ cert.name }}-{{ cert.common_name | default('') }}{{ cert.key_type | library.k8s_toolkit.key_suffix }}.pem"
+      web-client: "{{ cert.path }}/{{ cert.name }}-{{ cert.common_name | default('') }}{{ cert.key_type | library.k8s_toolkit.key_suffix }}.pem"
+
+- name: Формирование списка соответствий - шаг 2
+  set_fact:
+    check_list_map:
+      web-ca: ["{{ privatekey_path_map[cert.usage] }}", "{{ csr_path_map[cert.usage] }}", "{{ cert_path_map[cert.usage] }}"]
+      web-server: ["{{ privatekey_path_map[cert.usage] }}", "{{ csr_path_map[cert.usage] }}", "{{ cert_path_map[cert.usage] }}", "{{ pem_path_map[cert.usage] }}"]
+      web-client: ["{{ privatekey_path_map[cert.usage] }}", "{{ csr_path_map[cert.usage] }}", "{{ cert_path_map[cert.usage] }}", "{{ pem_path_map[cert.usage] }}"]
+
+- name: Check certificates
+  ansible.builtin.include_tasks: check_certs.yml
+  vars:
+    check_list: "{{ check_list_map[cert.usage] }}"
+  register: not_exists
+
+- name: Debug CA file existence
+  ansible.builtin.debug:
+    var: not_exists  # Выводим информацию о файлах для отладки
+
+- name: Debug cert
+  ansible.builtin.debug:
+    var: cert
+
+- name: Ensure CA exists
+  block:
+    - name: Create CA directory
+      ansible.builtin.file:
+        path: "{{ cert.path }}"
+        state: directory
+        mode: '0755'  # Создаем директорию CA, если отсутствует
+
+    - name: Include private key generation
+      ansible.builtin.include_tasks: create_cert.yml
+      vars:
+        _cert: "{{ cert }}"
+        _privatekey_path: "{{ privatekey_path_map[cert.usage] }}"
+        _csr_path: "{{ csr_path_map[cert.usage] }}"
+        _cert_path: "{{ cert_path_map[cert.usage] }}"
+        _pem_path: "{{ pem_path_map[cert.usage] }}"
+      register: _parent_cert
+
+    - name: Debug _parent_cert
+      ansible.builtin.debug:
+        var: _parent_cert
+
+  when: not_exists or ( cert.force | default(false) ) # Блок выполняется только если отсутствует хотя бы один файл CA
+
+- name: Set parent_cert
+  ansible.builtin.set_fact:
+    parent_cert: >-
+      {{
+        (
+          cert
+          | dict2items
+          | rejectattr('key', 'in', ['usage', 'force'])
+          | list
+          | items2dict
+        )
+        | combine({
+            'ownca_path': cert_path_map[cert.usage],
+            'ownca_privatekey_path': privatekey_path_map[cert.usage]
+          })
+      }}

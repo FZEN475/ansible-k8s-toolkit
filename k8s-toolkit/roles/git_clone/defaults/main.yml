@@ -1,0 +1,10 @@
+---
+git_key_path: "/root/.ssh/git_key"
+ssh_dir: "/root/.ssh"
+git_key_src: "/root/.ssh/id_ed25519"
+
+git_url: "git@github.com:FZEN475/ansible-k8s-toolkit.git"
+branch: "main"
+dest: "/tmp/repo"
+
+git_key_refresh: false

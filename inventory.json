@@ -1,0 +1,7 @@
+{
+  "test": {
+    "hosts": {
+      "control01": null
+    }
+  }
+}

@@ -1,5 +1,5 @@
-namespace: common
-name: library
+namespace: library
+name: k8s_toolkit
 version: "1.0.0"
 readme: README.md
 authors:
@@ -7,5 +7,5 @@ authors:
 description: "Всякая полезная штука."
 license:
   - "MIT"
-repository: "https://github.com/FZEN475/ansible-library.git"
+repository: "https://gitlab.fzen.pro/library/ansible.git"
 

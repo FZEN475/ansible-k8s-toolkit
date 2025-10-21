@@ -1,0 +1,198 @@
+
+- hosts: test
+  gather_facts: yes
+  tasks:
+
+    - name: Пример расширения диска после добавления памяти в esxi
+      include_role:
+        name: library.k8s_toolkit.disc_resize
+
+    - name: Установка пакетов
+      include_role:
+        name: library.k8s_toolkit.apt_get
+        
+    - name: Клонирование репозитория по ssh
+      include_role:
+        name: library.k8s_toolkit.git_clone
+
+#    - name: Update action
+#      block:
+#
+#        - name: Пример создания секрета
+#          include_role:
+#            name: library.k8s_toolkit.vault_secret
+#          vars:
+#            vault_access:
+#              server_url: "https://vault.secrets.svc:8200"
+#              kubernetes_service_account: "vault-sa"
+#              role_with_access: "vault-manager"
+#            client_access:
+#              role_name: "example-policy" # resource_name
+#              kubernetes_service_account: "example-sa"
+#              kubernetes_service_account_namespace: "default"
+#              policy_list: #[]
+#                - _policy_name: "example-resource"
+##                  _extra_path:
+##                    "secrets/example/example": [ "static","static","static","static" ]
+#                  _kv2:
+#                    - path: 'example/example-1'
+#                      engine_mount_point: "dev"
+#                      key_list:
+#                        - name: 'generate'
+#                          method: 'absent'
+#                          value_type: 'generate'
+#                          extra_parameters:
+#                            secretKey: "generate_1"
+#                            decodingStrategy: "None"
+#                        - name: 'static'
+#                          method: 'absent'
+#                          value_type: 'static'
+#                          value: 'static'
+#                        - name: 'manual'
+#                          method: 'absent'
+#                          value_type: 'manual'
+#                  _pgsql:
+#                    - db_con_role_name: 'db-example-1'
+#                      type: 'static-roles'
+#                      connection_name: 'pgsql'
+#                      method: 'absent'
+#                      db_username: 'gitlab'
+#                      extra_parameters:
+#                        secretKey: "password1"
+#                        decodingStrategy: "None"
+##                      # TODO: Не срабатывает блок DO $$BEGIN, приходится создавать учётную запись заранее
+###                      rotation_statements:
+###                        - !unsafe >-
+###                          DO $$BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = {{name}}) THEN CREATE ROLE {{name}} WITH LOGIN PASSWORD "{{password}}"; END IF; END$$;
+###                        - !unsafe >-
+###                          SELECT 'CREATE ROLE {{name}} WITH LOGIN PASSWORD {{password}}'
+###                          WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname={{name}})
+###                          \gexec
+###                        - !unsafe >-
+###                          ALTER USER {{name}} WITH PASSWORD '{{password}}';
+#                    - db_con_role_name: 'db-example-2'
+#                      type: 'static-roles'
+#                      connection_name: 'pgsql'
+#                      method: 'absent'
+#                      db_username: 'gitlab'
+##                      rotation_statements:
+###                        - !unsafe |
+###                          DO $$
+###                          BEGIN
+###                            IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '{{name}}') THEN
+###                              CREATE ROLE {{name}} WITH LOGIN PASSWORD '{{password}}';
+###                            END IF;
+###                          END$$;
+##                        - !unsafe |
+##                          ALTER USER {{name}} WITH PASSWORD '{{password}}';
+#
+#        - name: Debug vault_role_definitions
+#          ansible.builtin.debug:
+#            var: vault_role_definitions
+
+#        - name: Test vault_role_definitions
+#          ansible.builtin.set_fact:
+#            vault_role_definitions:
+#              example-policy:
+#                database/static-creds/db-example-1:
+#                  - extra_parameters:
+#                      decodingStrategy: "None"
+#                      secretKey: "generate-sk"
+#                    name: "password"
+#                database/static-creds/db-example-2:
+#                  - extra_parameters: {}
+#                    name: "password"
+#                dev/example/example-1:
+#                  - extra_parameters:
+#                      decodingStrategy: "None"
+#                      secretKey: "generate-sk"
+#                    name: "generate"
+#                  - extra_parameters: {}
+#                    name: "static"
+#                dev/example/example-2:
+#                  - extra_parameters: {}
+#                    "name": "static"
+#                secrets/example/example:
+#                  - extra_parameters: {}
+#                    "name": "static"
+#              example: {}
+
+#
+#        - name: Пример создания секрета
+#          include_role:
+#            name: library.k8s_toolkit.external_secrets
+#          vars:
+#            resource_name: "{{ vault_policy.key }}"
+#            resource_namespace: 'default'
+#            secret_store:
+#              ss_access_zone: 'SecretStore'
+#              server: 'https://vault.secrets.svc:8200'
+#            external_secret:
+#              es_access_zone: 'ExternalSecret'
+#            vault_access_role_name: "{{ vault_policy.key }}"
+#            policy_list: "{{ vault_policy.value }}"
+#          loop: "{{ vault_role_definitions | dict2items }}"
+#          loop_control:
+#            loop_var: vault_policy
+
+
+#    - name: Пример создания ca.key+ca.crt
+#      include_role:
+#        name: library.k8s_toolkit.certificates
+#      vars:
+#        cert:
+#          path: "/tmp/certificates"
+#          name: "test"
+#          key_type: RSA
+#          key_size: 3072
+#          usage: "web-ca"
+#          subject: {}
+#          basic_constraints: []
+#          force: false
+#      register: parent_cert
+#
+#    - name: Debug parent_cert
+#      ansible.builtin.debug:
+#        var: parent_cert
+#
+#    - name: Добавить поля в parent_cert
+#      ansible.builtin.set_fact:
+#        server_cert_list:
+#          server1: "{{ parent_cert | combine({
+#                      'usage': 'web-server',
+#                      'common_name': 'server1',
+#                      'subject_alt_name': 'IP:192.168.2.10,DNS:balancer,DNS:server1,DNS:server2,DNS:server3',
+#                      'force': true
+#                    }) }}"
+#          server2: "{{ parent_cert | combine({
+#                      'usage': 'web-server',
+#                      'common_name': 'server2',
+#                      'subject_alt_name': 'IP:192.168.2.11,DNS:balancer,DNS:server1,DNS:server2,DNS:server3',
+#                      'force': true
+#                    }) }}"
+#          server3: "{{ parent_cert | combine({
+#                      'usage': 'web-server',
+#                      'common_name': 'server3',
+#                      'subject_alt_name': 'IP:192.168.2.12,DNS:balancer,DNS:server1,DNS:server2,DNS:server3',
+#                      'force': true
+#                    }) }}"
+#          client1: "{{ parent_cert | combine({
+#                      'usage': 'web-client',
+#                      'common_name': 'client1',
+#                      'subject_alt_name': 'email:user@example.com',
+#                      'force': true
+#                    }) }}"
+#
+#    - name: Debug server_cert_list
+#      ansible.builtin.debug:
+#        var: server_cert_list
+#
+#    - name: Пример создания сертификатов
+#      include_role:
+#        name: library.k8s_toolkit.certificates
+#      loop: "{{ server_cert_list | dict2items }}"
+#      loop_control:
+#        label: "{{ item.key }}"
+#      vars:
+#        cert: "{{ item.value }}"
+

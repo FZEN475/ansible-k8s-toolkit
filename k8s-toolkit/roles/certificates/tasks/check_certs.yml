@@ -1,0 +1,21 @@
+- name: Check CA files
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: "{{ check_list }}"
+  register: file  # Сохраняем информацию о существовании каждого файла
+
+- name: Debug CA file existence
+  ansible.builtin.debug:
+    var: file  # Выводим информацию о файлах для отладки
+
+- name: Set fact for existing CA files
+  ansible.builtin.set_fact:
+    root_cert: "{{ file | community.general.json_query('results[*].stat.exists') }}"  # Составляем список существующих файлов
+
+- name: Debug root_cert fact
+  ansible.builtin.debug:
+    var: root_cert  # Проверяем фактический статус наличия CA файлов
+
+- name: Устанавливаем результат
+  ansible.builtin.set_fact:
+    not_exists: "{{ false in root_cert }}"

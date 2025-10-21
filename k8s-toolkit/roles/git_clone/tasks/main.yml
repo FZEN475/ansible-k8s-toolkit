@@ -1,0 +1,48 @@
+# git_clone/tasks/main.yml
+
+# Проверка существования SSH-ключа для доступа к Git
+- name: Check if git key exists
+  ansible.builtin.stat:
+    path: "{{ git_key_path }}"  # Путь к SSH-ключу
+  register: git_key_stat  # Сохраняем результат проверки в переменную
+
+# Отладка: вывод информации о существовании ключа
+- name: Debug git key existence
+  ansible.builtin.debug:
+    msg: "Git key exists: {{ git_key_stat.stat.exists }}"  # True/False
+
+- name: Ensure git repository with key handling
+  block:
+    - name: Ensure git key is present
+      block:
+        - name: Ensure root .ssh directory exists
+          ansible.builtin.file:
+            path: "{{ git_key_path | dirname }}"
+            state: directory
+            mode: '0700'
+
+        - name: Copy git key from secrets
+          ansible.builtin.copy:
+            src: "{{ git_key_src }}"
+            dest: "{{ git_key_path }}"
+            mode: '0600'
+
+      when: git_key_refresh is true or not git_key_stat.stat.exists
+
+    - name: Clone the Git repository
+      ansible.builtin.git:
+        repo: "{{ git_url }}"
+        dest: "{{ dest }}"
+        single_branch: yes
+        version: "{{ branch }}"
+        key_file: "{{ git_key_path }}"
+        accept_hostkey: yes
+        force: yes
+      register: git_dump
+
+  always:
+    - name: Remove git SSH key
+      ansible.builtin.file:
+        path: "{{ git_key_path }}"
+        state: absent
+

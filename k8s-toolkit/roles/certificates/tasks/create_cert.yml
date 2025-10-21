@@ -1,0 +1,116 @@
+
+- name: Debug _cert
+  ansible.builtin.debug:
+    var: _cert
+
+- name: Установить basic_constraints в зависимости от usage
+  set_fact:
+
+    common_name_map:
+      web-ca: "CA"
+      web-server: "{{ _cert.common_name | default(omit, true) }}"
+      web-client: "{{ _cert.common_name | default(omit, true) }}"
+
+    valid_days_map:
+      web-ca: 3650
+      web-server: "{{ _cert.valid_days | default('365', true) }}"
+      web-client: "{{ _cert.valid_days |  default('365', true) }}"
+
+    basic_constraints_map:
+      web-ca: "{{ _cert.basic_constraints | default(['CA:TRUE', 'pathlen:1'], true) }}"
+      web-server: "{{ _cert.basic_constraints | default(['CA:FALSE'], true) }}"
+      web-client: "{{ _cert.basic_constraints | default(['CA:FALSE'], true) }}"
+
+    key_usage_map:
+      web-ca: ['keyCertSign', 'cRLSign', 'digitalSignature']
+      web-server: ['digitalSignature', 'keyEncipherment']
+      web-client: ['digitalSignature']
+
+    extended_key_usage_map:
+      web-ca: []
+      web-server: ['serverAuth']
+      web-client: ['clientAuth']
+
+    provider_map:
+      web-ca: "selfsigned"
+      web-server: "ownca"
+      web-client: "ownca"
+
+- name: Debug basic_constraints
+  ansible.builtin.debug:
+    var: _cert.usage
+
+- name: Debug basic_constraints
+  ansible.builtin.debug:
+    var: basic_constraints_map[_cert.usage]
+
+- name: Generate private key for CA
+  community.crypto.openssl_privatekey:
+    path: "{{ _privatekey_path }}"
+    type: "{{ _cert.key_type }}" # Тип ключа: RSA, EC, ECDSA, ED25519
+    size: "{{ _cert.key_size if _cert.key_type not in ['ED25519'] else omit }}" # Размер ключа для RSA/EC/ECDSA, для ED25519 игнорируется
+    state: present
+    force: true
+  register: _privatekey
+
+- name: Debug _privatekey
+  ansible.builtin.debug:
+    var: _privatekey
+    
+- name: Generate CSR
+  community.crypto.openssl_csr:
+    path: "{{ _csr_path }}"
+    privatekey_path: "{{ _privatekey_path }}"
+    # subject
+    common_name: "{{ common_name_map[_cert.usage] }}"
+    organization_name: "{{ _cert.subject.organization_name | default(omit, true) }}"
+    country_name: "{{ _cert.subject.country_name | default(omit, true) }}"
+    state_or_province_name: "{{ _cert.subject.state_or_province_name | default(omit, true) }}"
+    locality_name: "{{ _cert.subject.locality_name | default(omit, true) }}"
+    organizational_unit_name: "{{ _cert.subject.organizational_unit_name | default(omit, true) }}"
+    email_address: "{{ _cert.subject.email_address | default(omit, true) }}"
+
+    basic_constraints: "{{ basic_constraints_map[_cert.usage] }}"
+    basic_constraints_critical: "{{ cert.basic_constraints_critical | default(true, true) }}"
+
+    key_usage: "{{ key_usage_map[cert.usage] }}"
+    key_usage_critical: "{{ _cert.key_usage_critical | default(true, true) }}"
+
+    extended_key_usage: "{{ extended_key_usage_map[_cert.usage] }}"
+    extended_key_usage_critical: "{{ _cert.extended_key_usage_critical | default(true, true) }}"
+    
+    subject_alt_name: "{{ _cert.subject_alt_name | default(omit, true) }}"
+
+    force: true
+  register: _csr
+  
+- name: Debug _csr
+  ansible.builtin.debug:
+    var: _csr
+
+- name: Generate certificate
+  community.crypto.x509_certificate:
+    path: "{{ _cert_path }}"
+    privatekey_path: "{{ _privatekey_path }}"
+    csr_path: "{{ _csr_path }}"
+    provider: "{{ provider_map[_cert.usage] }}"
+    ownca_path: "{{ _cert.ownca_path | default(omit, true) }}"
+    ownca_privatekey_path: "{{ _cert.ownca_privatekey_path | default(omit, true) }}"
+  register: _cert
+  
+- name: Debug _cert
+  ansible.builtin.debug:
+    var: _cert
+
+- name: Convert certificate to PEM
+  community.crypto.x509_certificate_convert:
+    src_path: "{{ _cert_path }}"
+    dest_path: "{{ _pem_path }}"
+    format: pem
+  when: cert.usage != 'web-ca'
+
+- name: Set dynamic fact
+  ansible.builtin.set_fact:
+    _parent_cert:
+      privatekey_path: "{{ _privatekey_path }}"
+      cert_path: "{{ _cert_path }}"

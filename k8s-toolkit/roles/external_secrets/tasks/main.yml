@@ -1,0 +1,166 @@
+- name: Validate input parameters
+  vars:
+    ss_valid: [ 'SecretStore', 'ClusterSecretStore' ]
+    es_valid: [ 'ExternalSecret', 'ClusterExternalSecret' ]
+  block:
+
+    # Группа 1: Основные параметры ресурса
+    - name: Validate resource parameters
+      assert:
+        that:
+          - resource_name is defined and resource_name | length > 0
+          - resource_namespace is defined and resource_namespace | length > 0
+        fail_msg: "Ошибка: Не заданы обязательные параметры ресурса (resource_name или resource_namespace)"
+        success_msg: "Основные параметры ресурса проверены успешно."
+
+    # Группа 2: Параметры политики
+    - name: Validate policy parameters
+      assert:
+        that:
+          - policy_list is defined
+        fail_msg: "Ошибка: Политика не задана корректно (policy_list={{ policy_list }})"
+        success_msg: "Параметры политики проверены успешно."
+
+    # Группа 3: Параметры SecretStore
+    - name: Validate secret_store parameters
+      assert:
+        that:
+          - secret_store is defined and secret_store | length > 0
+          - secret_store.ss_access_zone in ss_valid
+          - secret_store.server is defined and secret_store.server | length > 0
+        fail_msg: "Ошибка: Не заданы обязательные параметры SecretStore (ss_access_zone или server)"
+        success_msg: "Параметры SecretStore проверены успешно."
+
+    # Группа 4: Параметры ExternalSecret
+    - name: Validate external_secret parameters
+      assert:
+        that:
+          - external_secret is defined and external_secret | length > 0
+          - external_secret.es_access_zone in es_valid
+        fail_msg: "Ошибка: Не задан обязательный параметр ExternalSecret (es_access_zone)"
+        success_msg: "Параметры ExternalSecret проверены успешно."
+
+- name: Initialize postfix_map
+  ansible.builtin.set_fact:
+    postfix_map:
+      SecretStore: "-ss"
+      ClusterSecretStore: "-css"
+      ExternalSecret: "-es"
+      ClusterExternalSecret: "-ces"
+        
+- name: Initialize ca provider
+  ansible.builtin.set_fact:
+    _ca_provider: "{{ secret_store.ca_provider | default({
+      'type': 'Secret',
+      'name': 'vault-ca',
+      'key': 'ca.crt',
+      'namespace': resource_namespace 
+      })
+    }}"
+
+- name: Initialize secret_store.auth
+  ansible.builtin.set_fact:
+    _auth: "{{ secret_store.auth | default({
+      'kubernetes': {
+        'mountPath': 'kubernetes',
+        'role': vault_access_role_name | default(resource_name,true),
+        'serviceAccountRef': {
+          'name': resource_name + '-sa',
+          'namespace': resource_namespace
+        }
+      }
+    }) }}"
+
+- name: Debug policy_name
+  ansible.builtin.debug:
+    var: policy_name
+
+- name: Debug policy_list
+  ansible.builtin.debug:
+    var: policy_list
+
+- name: Initialize compiled secret list
+  ansible.builtin.set_fact:
+    compiled_secret_data: []
+
+- name: Iterate secret paths within policy
+  ansible.builtin.include_tasks: data_generator/policy_data.yml
+  loop: "{{ policy_list | dict2items }}"
+  loop_control:
+    loop_var: policy_entry
+  
+- name: Debug compiled_secret_data
+  ansible.builtin.debug:
+    var: compiled_secret_data
+
+- name: DELETE action
+  block:
+    - name: "Remove secret-store {{ resource_namespace }}/{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }} ({{ secret_store.ss_access_zone }})"
+      kubernetes.core.k8s:
+        state: "absent"
+        definition:
+          apiVersion: external-secrets.io/v1beta1
+          kind: "{{ secret_store.ss_access_zone }}"
+          metadata:
+            name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
+            namespace: "{{ resource_namespace }}"
+
+    - name: "Remove external-secret {{ resource_namespace }}/{{ resource_name }}{{ postfix_map[external_secret.es_access_zone] }} ({{ external_secret.es_access_zone }})"
+      kubernetes.core.k8s:
+        state: "absent"
+        definition:
+          apiVersion: external-secrets.io/v1beta1
+          kind: "{{ external_secret.es_access_zone }}"
+          metadata:
+            name: "{{ resource_name }}{{ postfix_map[external_secret.es_access_zone] }}"
+            namespace: "{{ resource_namespace }}"
+  when: compiled_secret_data | length == 0
+
+- name: Update action
+  block:
+    - name: "Update store {{ resource_namespace }}/{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }} ({{ secret_store.ss_access_zone }})"
+      kubernetes.core.k8s:
+        state: "present"
+        apply: true
+        definition:
+          apiVersion: external-secrets.io/v1beta1
+          kind: "{{ secret_store.ss_access_zone }}"
+          metadata:
+            name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
+            namespace: "{{ resource_namespace }}"
+          spec:
+            retrySettings:
+              retryInterval: "60s"
+            provider:
+              vault:
+                server: "{{ secret_store.server }}"
+                version: "v2"
+                namespace: "{{ resource_namespace }}"
+                caProvider: "{{ _ca_provider }}"
+                auth: "{{ _auth }}"
+
+    - name: "Update external-secret {{ resource_namespace }}/{{ resource_name }}{{ postfix_map[external_secret.es_access_zone] }} ({{ external_secret.es_access_zone }})"
+      kubernetes.core.k8s:
+        state: "present"
+        apply: true
+        definition:
+          apiVersion: external-secrets.io/v1beta1
+          kind: "{{ external_secret.es_access_zone }}"
+          metadata:
+            name: "{{ resource_name }}{{ postfix_map[external_secret.es_access_zone] }}"
+            namespace: "{{ resource_namespace }}"
+          spec:
+            secretStoreRef:
+              name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
+              kind: "{{ secret_store.ss_access_zone }}"
+            target:
+              name: "{{ resource_name }}-secrets"
+              creationPolicy: Owner
+              deletionPolicy: Delete
+              template:
+                data: "{{ external_secret.template_data | default(omit,true) }}"
+                type: "{{ external_secret.secret_type | default('Opaque',true) }}"
+            data: "{{ compiled_secret_data }}"
+  when: compiled_secret_data | length > 0
+
+

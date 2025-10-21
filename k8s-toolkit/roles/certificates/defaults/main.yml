@@ -1,0 +1,29 @@
+---
+
+cert:
+  path: "/tmp/certificates"
+  name: "test"
+  key_type: RSA  # Допустимые значения: 'RSA', 'EC', 'ECDSA', 'ED25519'
+  key_size: 2048
+  usage: "web-ca"  # Допустимые значения: 'web-ca', 'web-server', 'web-client'
+  common_name: ""
+  subject:
+    organization_name: ""
+    country_name: ""
+    state_or_province_name: ""
+    locality_name: ""
+    organizational_unit_name: ""
+    email_address: ""
+#  basic_constraints:
+  basic_constraints_critical: true
+# key_usage:
+  key_usage_critical: true
+# extended_key_usage:
+  extended_key_usage_critical: false
+
+  ownca_path: ""
+  ownca_privatekey_path: ""
+  
+  subject_alt_name: []
+  
+  force: false

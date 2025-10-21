@@ -1,0 +1,189 @@
+#_auth:
+#  server:                         # обязательно, не пустое
+#  role_id:                        # обязательно, не пустое
+#  jwt_token:                      # обязательно, не пустое
+#  mount_point:                    # не обязательно: default "jwt"
+#_role_name:                       # обязательно, не пустое
+#_role_mount_point:                # не обязательно: default "kubernetes"
+#_role_sa:                         # обязательно, не пустое
+#_role_sa_ns:                      # обязательно, не пустое
+#_policy_list:                     # обязательно, не пустое
+
+- name: Validate input parameters
+  vars:
+    method_valid: ['present', 'absent']
+    value_type_valid: ['generate', 'static', 'manual']
+  block:
+    - name: Validate server and authentication
+      assert:
+        that:
+          - _auth.server is defined and _auth.server | length > 0
+          - _auth.role_id is defined and _auth.role_id | length > 0
+          - _auth.jwt_token is defined and _auth.jwt_token | length > 0
+        fail_msg: "Ошибка: параметры авторизации (server, role_id, jwt_token) обязательны."
+        success_msg: "Параметры авторизации проверены успешно."
+
+    - name: Validate role name
+      assert:
+        that:
+          - _role_name is defined and _role_name | length > 0
+          - _role_sa is defined and _role_sa | length > 0
+          - _role_sa_ns is defined and _role_sa_ns | length > 0
+        fail_msg: "Ошибка: параметры (_role_name, _role_sa, _role_sa_ns) обязательны и не могут быть пустыми."
+        success_msg: "Параметры (_role_name, _role_sa, _role_sa_ns) проверены успешно."
+
+    - name: Validate role name
+      assert:
+        that:
+          - _policy_list is defined
+        fail_msg: "Ошибка: '_policy_list' обязателен и не может быть пустым."
+        success_msg: "Путь '_policy_list' проверен успешно."
+
+- name: Initialize _policy_result_list
+  ansible.builtin.set_fact:
+    _policy_result_list: {}
+
+- name: KV2 secrets
+  ansible.builtin.include_tasks: policy/policy_manager.yml
+  vars:
+    __auth: "{{ _auth }}"
+    __policy_name: "{{ _policy_item._policy_name }}"
+    __extra_path: "{{ _policy_item._extra_path }}"
+    __kv2: "{{ _policy_item._kv2 | default([]) }}"
+    __pgsql: "{{ _policy_item._pgsql | default([]) }}"
+  loop: "{{ _policy_list }}"
+  loop_control:
+    loop_var: _policy_item
+
+- name: Debug _policy_result_list
+  ansible.builtin.debug:
+    var: _policy_result_list
+
+- name: Set flag if _policy_result_list has non-empty items
+  ansible.builtin.set_fact:
+    has_nonempty_policy: >-
+      {{
+        (_policy_result_list | length > 0)
+        and
+        ((_policy_result_list | dict2items | selectattr('value', 'ne', {}) | list | length) > 0)
+      }}
+
+- name: DELETE action
+  block:
+    - name: Get token from jwt
+      ansible.builtin.uri:
+        url: "{{ _auth.server }}/v1/auth/{{ _auth.mount_point }}/login"
+        ca_path: '/tmp/vault-ca.crt'
+        method: POST
+        follow_redirects: all
+        return_content: yes
+        body_format: json
+        body:
+          jwt: "{{ _auth.jwt_token }}"
+          role: "{{ _auth.role_id }}"
+      register: login_response
+
+    - name: Vault token
+      ansible.builtin.set_fact:
+        _vault_token: "{{ login_response.json.auth.client_token }}"
+
+    - name: Remove role
+      ansible.builtin.uri:
+        url: "{{ _auth.server }}/v1/auth/{{ _role_mount_point | default('kubernetes') }}/role/{{ _role_name }}"
+        ca_path: '/tmp/vault-ca.crt'
+        method: DELETE
+        follow_redirects: all
+        return_content: yes
+        headers:
+          X-Vault-Token: "{{ _vault_token }}"
+        status_code: [200, 204]
+      register: remove_response
+
+    - name: Debug remove_response
+      ansible.builtin.debug:
+        var: remove_response
+
+    - name: Generate vault_role_definitions
+      ansible.builtin.set_fact:
+        vault_role_definitions: "{{ vault_role_definitions | default({}) | combine({ _role_name: {} }) }}"
+
+  rescue:
+    - name: Explain failure
+      ansible.builtin.fail:
+        msg: >
+          Ошибка при удалении роли доступа или получении токена.
+          Детали: {{ ansible_failed_task.name }} — {{ ansible_failed_result.msg }}
+  when: not has_nonempty_policy
+
+- name: Update action
+  block:
+    - name: Get token from jwt
+      ansible.builtin.uri:
+        url: "{{ _auth.server }}/v1/auth/{{ _auth.mount_point }}/login"
+        ca_path: '/tmp/vault-ca.crt'
+        method: POST
+        follow_redirects: all
+        return_content: yes
+        body_format: json
+        body:
+          jwt: "{{ _auth.jwt_token }}"
+          role: "{{ _auth.role_id }}"
+      register: login_response
+
+    - name: Vault token
+      ansible.builtin.set_fact:
+        _vault_token: "{{ login_response.json.auth.client_token }}"
+
+    - name: Generate _role_string
+      ansible.builtin.set_fact:
+        _role_string:
+          bound_service_account_names: "{{ _role_sa }}"
+          bound_service_account_namespaces: "{{ _role_sa_ns }}"
+          policies: "{{ _policy_result_list.keys() | list }}"
+          max_ttl: 1800000
+
+    - name: Debug _role_string
+      ansible.builtin.debug:
+        var: _role_string
+
+    - name: Update role
+      ansible.builtin.uri:
+        url: "{{ _auth.server }}/v1/auth/{{ _role_mount_point | default('kubernetes') }}/role/{{ _role_name }}"
+        ca_path: '/tmp/vault-ca.crt'
+        method: POST
+        follow_redirects: all
+        return_content: yes
+        headers:
+          X-Vault-Token: "{{ _vault_token }}"
+        body: "{{ _role_string | to_json }}"
+        status_code: [200, 204]
+      register: update_response
+
+    - name: Debug update_response
+      ansible.builtin.debug:
+        var: update_response
+
+    - name: Generate vault_role_definitions
+      ansible.builtin.set_fact:
+        vault_role_definitions: "{{ vault_role_definitions | default({}) | combine({ _role_name: _policy_result_list }) }}"
+
+  rescue:
+    - name: Explain failure
+      ansible.builtin.fail:
+        msg: >
+          Ошибка при создании роли доступа или получении токена.
+          Детали: {{ ansible_failed_task.name }} — {{ ansible_failed_result.msg }}
+  when: has_nonempty_policy
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,10 @@
+auth:
+  children:
+    test:
+  vars:
+    ansible_ssh_user: ubuntu
+    ansible_ssh_private_key_file: /root/.ssh/id_ed25519
+    ansible_become: true
+    ansible_become_method: sudo
+
+

@@ -1,0 +1,30 @@
+#_vault_access_sa:                # обязательно, не пустое
+#_secret_name:                    # обязательно, не пустое
+#_state:                          # обязательно, не пустое
+
+- name: Validate input parameters
+  vars:
+    state_valid: ['present', 'absent']
+  block:
+    - name: Validate server and authentication
+      assert:
+        that:
+          - _vault_access_sa is defined and _vault_access_sa | length > 0
+          - _secret_name is defined and _secret_name | length > 0
+          - _state is defined and _state in state_valid
+        fail_msg: "Ошибка: требуется имя сервисного аккаунта с доступом к Vault, и <namespace>.<name> проекта."
+        success_msg: "Параметры авторизации проверены успешно."
+
+- name: "Service account JVT secret {{ _state }}"
+  kubernetes.core.k8s:
+    state: "{{ _state }}"
+    wait: true
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: "{{ _secret_name }}"
+        namespace: secrets
+        annotations:
+          kubernetes.io/service-account.name: "{{ _vault_access_sa | trim }}"
+      type: kubernetes.io/service-account-token

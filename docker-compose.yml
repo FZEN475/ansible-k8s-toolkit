@@ -1,0 +1,27 @@
+services:
+  ansible:
+    image: ghcr.io/fzen475/ansible-dev-image:latest
+    container_name: ansible-k8s-toolkit
+    env_file: ./.env
+    environment:
+      ANSIBLE_COLLECTION_PATH: "k8s-toolkit"
+      ANSIBLE_COLLECTION_URL: ""
+      ANSIBLE_COLLECTION_REQUIREMENTS_FILE: ""
+      ANSIBLE_COLLECTION_EXTRA_FLAGS: "--ignore-certs"
+      ANSIBLE_COLLECTION_ACCESS_TOKEN: ${ANSIBLE_COLLECTION_ACCESS_TOKEN}
+
+      ANSIBLE_PLAYBOOK_OR_COLLECTION: "library.k8s_toolkit.playbook"
+      ANSIBLE_INVENTORY_FILES_OR_URLS: "inventory.json,structure.yaml"
+      ANSIBLE_PRIVATE_KEY: "/root/.ssh/id_ed25519"
+      ANSIBLE_EXTRA_FLAGS: ""
+    volumes:
+      - /tmp/ansible-k8s-toolkit:/source
+    secrets:
+      - source: id_ed25519
+        target: /root/.ssh/id_ed25519
+        mode: 0600
+    restart: no
+
+secrets:
+  id_ed25519:
+    file: /root/.ssh/id_ed25519

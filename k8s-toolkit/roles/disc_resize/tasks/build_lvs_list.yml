@@ -1,0 +1,37 @@
+
+- name: Debug pv_out
+  ansible.builtin.debug:
+    var: logical_volume_record
+
+
+- name: Split LV line into parts
+  set_fact:
+    current_lv_parts: "{{ logical_volume_record.split() }}"
+
+- name: Set current lv variables
+  set_fact:
+    current_lv_name: "{{ current_lv_parts[0] }}"
+    current_vg: "{{ current_lv_parts[1] }}"
+    current_lv_path: "{{ current_lv_parts[2] }}"
+
+- name: Get PV list for current VG
+  ansible.builtin.shell: "pvs --noheadings -o pv_name,vg_name | awk '$2==\"{{ current_vg }}\"{print $1}'"
+  register: pv_out
+  changed_when: false
+
+- name: Debug pv_out
+  ansible.builtin.debug:
+    var: pv_out
+
+- name: Add current LV entry to lvs_list
+  set_fact:
+    lvs_list: >-
+      {{
+        (lvs_list | default({})) | combine({
+          current_lv_name: {
+            'vg_name': current_vg,
+            'lv_path': current_lv_path,
+            'pv_list': (pv_out.stdout_lines | default([]))
+          }
+        })
+      }}

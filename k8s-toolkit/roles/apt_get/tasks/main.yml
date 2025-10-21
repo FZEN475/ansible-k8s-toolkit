@@ -1,0 +1,74 @@
+- name: Validate input parameters
+  block:
+    # --- Проверка параметров GPG ключей ---
+    - name: Validate GPG keys
+      ansible.builtin.assert:
+        that:
+          - gpg_key is defined
+          - gpg_key is iterable
+          - gpg_key is sequence
+          - gpg_key is mapping == false
+        fail_msg: "Ошибка: переменная gpg_key должна быть списком (list), даже если пустая."
+        success_msg: "Параметр gpg_key проверен успешно."
+
+    # --- Проверка параметров репозиториев ---
+    - name: Validate repositories
+      ansible.builtin.assert:
+        that:
+          - repository is defined
+          - repository is iterable
+          - repository is sequence
+          - repository is mapping == false
+        fail_msg: "Ошибка: переменная repository должна быть списком (list), даже если пустая."
+        success_msg: "Параметр repository проверен успешно."
+
+    # --- Проверка списка пакетов ---
+    - name: Validate package list
+      ansible.builtin.assert:
+        that:
+          - list is defined
+          - list is iterable
+          - list is sequence
+          - list is mapping == false
+        fail_msg: "Ошибка: переменная list должна быть списком (list), даже если пустая."
+        success_msg: "Параметр list проверен успешно."
+
+    # --- Проверка параметра upgrade ---
+    - name: Validate upgrade flag
+      ansible.builtin.assert:
+        that:
+          - upgrade is defined
+          - upgrade is boolean
+        fail_msg: "Ошибка: переменная upgrade должна быть булевым значением (true/false)."
+        success_msg: "Параметр upgrade проверен успешно."
+        
+- name: Add Docker GPG apt Key
+  ansible.builtin.apt_key:
+    url: "{{ item }}"
+    state: present
+  loop: "{{ gpg_key }}"
+  when: gpg_key is defined and gpg_key|length > 0
+
+- name: Add repository into sources list
+  ansible.builtin.apt_repository:
+    repo: "{{ item }}"
+    state: present
+  loop: "{{ repository }}"
+  when: repository is defined and repository|length > 0
+
+- name: Update and upgrade
+  ansible.builtin.apt:
+    name: aptitude
+    state: present
+    update_cache: true
+    upgrade: dist
+  when: upgrade is defined and upgrade
+
+- name: Install packages
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+    install_recommends: true
+  loop: "{{ list }}"
+  register: install_apt
+  when: list is defined and list|length > 0

@@ -1,0 +1,39 @@
+---
+
+vault_role_list:
+  example-policy:
+    database/static-creds/db-example-1:
+      - extra_parameters:
+          decodingStrategy: "None"
+          secretKey: "pa$$word"
+        name: "password"
+    database/static-creds/db-example-2:
+      - extra_parameters: {}
+        name: "password"
+    dev/example/example-1:
+      - extra_parameters:
+          decodingStrategy: "None"
+          secretKey: "generate_1"
+        name: "generate"
+      - extra_parameters: {}
+        name: "static"
+    dev/example/example-2:
+      - extra_parameters: {}
+        "name": "static"
+    secrets/example/example:
+      - extra_parameters: {}
+        "name": "static"
+  example-policy-empty: {}
+
+resource_name:
+resource_namespace:
+
+secret_store:
+  ss_access_zone: 'SecretStore'                   # [ 'SecretStore', 'ClusterSecretStore' ]
+  server:
+  ca_provider: {}
+  auth: {}
+
+external_secret:
+  es_access_zone: 'ExternalSecret'                   # [ 'ExternalSecret', 'ClusterExternalSecret' ]
+

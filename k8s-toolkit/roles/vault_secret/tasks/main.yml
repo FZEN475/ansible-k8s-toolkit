@@ -1,0 +1,115 @@
+
+- name: Validate Secret input parameters
+  block:
+    - name: Validate vault access
+      assert:
+        that:
+          - vault_access is defined and vault_access | length > 0
+          - vault_access.server_url is defined and vault_access.server_url | length > 0
+          - vault_access.kubernetes_service_account is defined and vault_access.kubernetes_service_account | length > 0
+          - vault_access.role_with_access is defined and vault_access.role_with_access | length > 0
+        fail_msg: "Ошибка: обязательные поля vault_access должны быть заданы. https://github.com/FZEN475/ansible-k8s-toolkit/tree/main/k8s-toolkit/roles/vault_secret"
+        success_msg: "Параметры vault access проверены успешно."
+
+    - name: Validate client access
+      assert:
+        that:
+          - client_access is defined and client_access | length > 0
+          - client_access.role_name is defined and client_access.role_name | length > 0
+          - client_access.kubernetes_service_account is defined and client_access.kubernetes_service_account | length > 0
+          - client_access.kubernetes_service_account_namespace is defined and client_access.kubernetes_service_account_namespace | length > 0
+          - client_access.policy_list is defined
+        fail_msg: "Ошибка: обязательные поля client_access должны быть заданы. https://github.com/FZEN475/ansible-k8s-toolkit/tree/main/k8s-toolkit/roles/vault_secret"
+        success_msg: "Секция store проверена успешно."
+
+- name: generate secret name
+  ansible.builtin.set_fact:
+    secret_name: "{{ lookup('password', '/dev/null length=16 chars=ascii_lowercase') }}"
+
+- name: Debug secret_name
+  ansible.builtin.debug:
+    var: secret_name
+
+- name: Action
+  block:
+  - name: Open access
+    ansible.builtin.include_tasks: vault/access.yml
+    vars:
+      _vault_access_sa: "{{ vault_access.kubernetes_service_account }}"
+      _secret_name: "{{ secret_name }}"
+      _state: present
+
+  - name: Connect to Vault
+    block:
+      - name: Get jwt token
+        kubernetes.core.k8s_info:
+          api_version: v1
+          kind: Secret
+          name: "{{ secret_name }}"
+          namespace: secrets
+        register: jwt_token_data
+        until: jwt_token_data.resources[0].data.token is defined
+        retries: 5
+        delay: 2
+  
+      - name: Prepare values
+        ansible.builtin.set_fact:
+          jwt_token: "{{ jwt_token_data.resources[0].data.token | b64decode }}"
+          vault_ca: "{{ jwt_token_data.resources[0].data['ca.crt'] | b64decode }}"
+  
+      - name: Сохранить vault_ca в файл
+        ansible.builtin.copy:
+          content: "{{ vault_ca }}"
+          dest: /tmp/vault-ca.crt
+          mode: '0644'
+  
+      - name: Debug jwt_token
+        ansible.builtin.debug:
+          var: jwt_token
+  
+      - name: Install hvac
+        ansible.builtin.pip:
+          name: hvac
+  
+      - name: Initialize vault_role_definitions
+        ansible.builtin.set_fact:
+          vault_role_definitions: {}
+  
+      - name: Update role
+        ansible.builtin.include_tasks: vault/role_manager.yml
+        vars:
+          _auth:
+            server: "{{ vault_access.server_url }}"
+            role_id: "{{ vault_access.role_with_access }}"
+            jwt_token: "{{ jwt_token }}"
+            mount_point: "{{ vault_access.jwt_mount_point | default('jwt') }}"
+          _role_name: "{{ client_access.role_name }}"
+          _role_sa: "{{ client_access.kubernetes_service_account }}"
+          _role_sa_ns: "{{ client_access.kubernetes_service_account_namespace }}"
+          _policy_list: "{{ client_access.policy_list }}"
+
+      - name: Debug vault_role_definitions
+        ansible.builtin.debug:
+          var: vault_role_definitions
+
+  always:
+    - name: Close access
+      ansible.builtin.include_tasks: vault/access.yml
+      vars:
+        _vault_access_sa: "{{ vault_access.kubernetes_service_account }}"
+        _secret_name: "{{ secret_name }}"
+        _state: absent
+  
+  
+
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  

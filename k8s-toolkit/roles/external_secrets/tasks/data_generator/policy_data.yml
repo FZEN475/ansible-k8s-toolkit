@@ -1,0 +1,10 @@
+
+- name: Debug policy_entry
+  ansible.builtin.debug:
+    var: policy_entry
+
+- name: Iterate secret paths within policy
+  ansible.builtin.include_tasks: secret_data.yml
+  loop: "{{ policy_entry.value | dict2items }}"
+  loop_control:
+    loop_var: secret_entry

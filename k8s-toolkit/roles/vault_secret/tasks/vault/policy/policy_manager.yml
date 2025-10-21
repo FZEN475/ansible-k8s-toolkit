@@ -1,0 +1,331 @@
+#__auth:
+#  server:                         # обязательно, не пустое
+#  role_id:                        # обязательно, не пустое
+#  jwt_token:                      # обязательно, не пустое
+#  mount_point:                    # не обязательно: default "jwt"
+#__policy_name                      # обязательно, не пустое
+#__extra_path:                      # список, может быть пустым
+#__kv2:                             # список, может быть пустым
+#  - path:                         # обязательно, не пустое
+#    engine_mount_point:           # обязательно, не пустое
+#    key_list:                     # список, может быть пустым
+#__pgsql:                           # список, может быть пустым
+#  - db_con_role_name:             # обязательно, не пустое
+#    engine_mount_point:           # обязательно, не пустое
+#    type:                         # обязательно, один из вариантов ['role', 'static-role']
+#    connection_name:              # обязательно, не пустое
+#    method:                       # обязательно, один из вариантов ['present', 'absent']
+#    db_username:                  # если __method=='present': обязательно, не пустое
+#    extra_parameters:             # не обязательно: default {}
+
+- name: Validate input parameters
+  vars:
+    method_valid: ['present', 'absent']
+    pgsql_type_valid: ['roles', 'static-roles']
+  block:
+    - name: Validate server and authentication
+      assert:
+        that:
+          - __auth.server is defined and __auth.server | length > 0
+          - __auth.role_id is defined and __auth.role_id | length > 0
+          - __auth.jwt_token is defined and __auth.jwt_token | length > 0
+        fail_msg: "Ошибка: параметры авторизации (server, role_id, jwt_token) обязательны."
+        success_msg: "Параметры авторизации проверены успешно."
+
+    - name: Validate policy name
+      assert:
+        that:
+          - __policy_name is defined and __policy_name | length > 0
+        fail_msg: "Ошибка: '__policy_name' обязателен и не может быть пустым."
+        success_msg: "Путь '__policy_name' проверен успешно."
+
+    - name: Validate each item in __extra_path
+      loop: "{{ __extra_path | default({}) | dict2items }}"
+      loop_control:
+        loop_var: item
+      assert:
+        that:
+          - item.value is iterable
+          - item.value | length > 0
+        fail_msg: "Ошибка: каждый элемент __extra_path должен содержать непустой список ключей."
+        success_msg: "Элементы __extra_path проверены успешно."
+
+    - name: Validate __kv2 items
+      loop: "{{ __kv2 | default([]) }}"
+      loop_control:
+        loop_var: kv2_item
+      assert:
+        that:
+          - kv2_item.path is defined and kv2_item.path | length > 0
+          - kv2_item.engine_mount_point is defined and kv2_item.engine_mount_point | length > 0
+        fail_msg: "Ошибка: каждый элемент __pgsql должен содержать обязательные ключи."
+        success_msg: "Элементы __pgsql проверены успешно."
+
+    - name: Validate __pgsql items
+      loop: "{{ __pgsql | default([]) }}"
+      loop_control:
+        loop_var: pgsql_item
+      assert:
+        that:
+          - pgsql_item.db_con_role_name is defined and pgsql_item.db_con_role_name | length > 0
+          - pgsql_item.type in pgsql_type_valid
+          - pgsql_item.connection_name is defined and pgsql_item.connection_name | length > 0
+          - pgsql_item.method in method_valid
+        fail_msg: "Ошибка: каждый элемент __pgsql должен содержать обязательные ключи."
+        success_msg: "Элементы __pgsql проверены успешно."
+
+- name: KV2
+  block:
+    - name: Initialize __kv2_path_list
+      ansible.builtin.set_fact:
+        __kv2_path_list: {}
+     
+    - name: KV2 secrets
+      ansible.builtin.include_tasks: secrets/kv2_manager.yml
+      vars:
+        ___auth: "{{ __auth }}"
+        ___path: "{{ __kv2_item.path }}"
+        ___engine_mount_point: "{{ __kv2_item.engine_mount_point }}"
+        ___key_list: "{{ __kv2_item.key_list }}"
+      loop: "{{ __kv2 }}"
+      loop_control:
+        loop_var: __kv2_item
+    
+    - name: Debug __kv2_path_list
+      ansible.builtin.debug:
+        var: __kv2_path_list
+
+- name: PGSQL
+  block:
+    - name: Initialize __kv2_path_list
+      ansible.builtin.set_fact:
+        __pgsql_path_list: {}
+
+    - name: KV2 secrets
+      ansible.builtin.include_tasks: secrets/pgsql_manager.yml
+      vars:
+        ___auth: "{{ __auth }}"
+        ___db_con_role_name: "{{ __pgsql_item.db_con_role_name }}"
+        ___engine_mount_point: "{{ __pgsql_item.engine_mount_point | default('database') }}"
+        ___type: "{{ __pgsql_item.type }}"
+        ___connection_name: "{{ __pgsql_item.connection_name }}"
+        ___method: "{{ __pgsql_item.method }}"
+        ___db_username: "{{ __pgsql_item.db_username }}"
+        ___rotation_statements: "{{ __pgsql_item.rotation_statements | default([],true) }}"
+        ___rotation_period: "{{ __pgsql_item.rotation_period | default('',true) }}"
+        ___extra_parameters: "{{ __pgsql_item.extra_parameters | default({},true) }}"
+        
+      loop: "{{ __pgsql }}"
+      loop_control:
+        loop_var: __pgsql_item
+
+    - name: Debug __pgsql_path_list
+      ansible.builtin.debug:
+        var: __pgsql_path_list
+
+- name: Normalize __extra_path
+  ansible.builtin.set_fact:
+    __extra_path_normalized: >-
+      {{
+        dict(
+          (__extra_path | default({})).keys() | zip(
+            (__extra_path | default({})).values()
+            | map('map', 'regex_replace', '^(.*)$', '{"name": "\1", "extra_parameters": {}}')
+            | map('map', 'from_yaml')
+          )
+        )
+      }}
+
+- name: Define list of lists to merge
+  ansible.builtin.set_fact:
+    __path_lists:
+      - "{{ __kv2_path_list }}"
+      - "{{ __pgsql_path_list }}"
+      - "{{ __extra_path_normalized | default({}) }}"
+
+- name: Debug __path_lists
+  ansible.builtin.debug:
+    var: __path_lists
+
+- name: Merge all dicts with list append
+  ansible.builtin.set_fact:
+    __merged_path_list: "{{ __path_lists | combine(list_merge='append_rp', recursive=True) }}"
+
+- name: Debug __merged_path_list
+  ansible.builtin.debug:
+    var: __merged_path_list
+
+- name: Remove duplicates in lists
+  ansible.builtin.set_fact:
+    __merged_path_list: "{{ __merged_path_list | combine({item.key: item.value | unique}) }}"
+  loop: "{{ __merged_path_list | dict2items }}"
+
+- name: Debug __merged_path_list
+  ansible.builtin.debug:
+    var: __merged_path_list
+
+- name: DELETE action
+  block:
+    - name: Get token from jwt
+      ansible.builtin.uri:
+        url: "{{ __auth.server }}/v1/auth/{{ __auth.mount_point }}/login"
+        ca_path: '/tmp/vault-ca.crt'
+        method: POST
+        follow_redirects: all
+        return_content: yes
+        body_format: json
+        body:
+          jwt: "{{ __auth.jwt_token }}"
+          role: "{{ __auth.role_id }}"
+      register: login_response
+
+    - name: Vault token
+      ansible.builtin.set_fact:
+        __vault_token: "{{ login_response.json.auth.client_token }}"
+
+    - name: Remove access policy
+      ansible.builtin.uri:
+        url: "{{ __auth.server }}/v1/sys/policy/{{ __policy_name }}"
+        ca_path: '/tmp/vault-ca.crt'
+        method: DELETE
+        follow_redirects: all
+        return_content: yes
+        headers:
+          X-Vault-Token: "{{ __vault_token }}"
+        status_code: [200, 204]
+      register: remove_response
+
+    - name: Debug remove_response
+      ansible.builtin.debug:
+        var: remove_response
+
+    - name: Generate _policy_result_list
+      ansible.builtin.set_fact:
+        _policy_result_list: "{{ _policy_result_list | default({}) | combine({ __policy_name: {} }) }}"
+
+  rescue:
+    - name: Explain failure
+      ansible.builtin.fail:
+        msg: >
+          Ошибка при удалении роли доступа или получении токена.
+          Детали: {{ ansible_failed_task.name }} — {{ ansible_failed_result.msg }}
+  when: __merged_path_list | length == 0
+
+- name: Update action
+  block:
+    - name: Get token from jwt
+      ansible.builtin.uri:
+        url: "{{ __auth.server }}/v1/auth/{{ __auth.mount_point }}/login"
+        ca_path: '/tmp/vault-ca.crt'
+        method: POST
+        follow_redirects: all
+        return_content: yes
+        body_format: json
+        body:
+          jwt: "{{ __auth.jwt_token }}"
+          role: "{{ __auth.role_id }}"
+      register: login_response
+
+    - name: Vault token
+      ansible.builtin.set_fact:
+        __vault_token: "{{ login_response.json.auth.client_token }}"
+
+    - name: Generate __policy_string
+      ansible.builtin.set_fact:
+        __policy_string: |
+          {% for path, items in __merged_path_list.items() %}
+          {% for item in items %}
+          path "{{ path }}/{{ item.name }}" { capabilities = ["read"] }
+          {% endfor %}
+          {% endfor %}
+    
+    - name: Debug __policy_string
+      ansible.builtin.debug:
+        var: __policy_string
+
+    - name: Update access policy
+      ansible.builtin.uri:
+        url: "{{ __auth.server }}/v1/sys/policy/{{ __policy_name }}"
+        ca_path: '/tmp/vault-ca.crt'
+        method: POST
+        follow_redirects: all
+        return_content: yes
+        headers:
+          X-Vault-Token: "{{ __vault_token }}"
+        body: "{{ {'policy': __policy_string} | to_json }}"
+        status_code: [200, 204]
+      register: update_response
+
+    - name: Debug update_response
+      ansible.builtin.debug:
+        var: update_response
+        
+    - name: Generate _policy_result_list
+      ansible.builtin.set_fact:
+        _policy_result_list: "{{ _policy_result_list | default({}) | combine({ __policy_name: __merged_path_list }) }}"
+        
+  rescue:
+    - name: Explain failure
+      ansible.builtin.fail:
+        msg: >
+          Ошибка при создании роли доступа или получении токена.
+          Детали: {{ ansible_failed_task.name }} — {{ ansible_failed_result.msg }}        
+  when: __merged_path_list | length > 0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+        
+#    __role_id: 'secret-manager'
+#    __jwt_token: "{{ jwt_token }}"
+#    __mount_point: 'jwt'
+#    __engine_mount_point: "{{ secret.ns }}"
+#    __path: 'test/example'
+#    __key_list:
+#      - name: 'pipe-secret'
+#        method: 'absent'
+#      - name: 'foo'
+#        method: 'absent'
+#      - name: 'generate'
+#        method: 'absent'
+#        value_type: 'generate'
+#      - name: 'static'
+#        method: 'absent'
+#        value_type: 'static'
+#        value: 'static'
+#      - name: 'absent'
+#        method: 'absent'
+#        value_type: 'static'
+#        value: 'static'
+#      - name: 'manual'
+#        method: 'absent'
+#        value_type: 'manual'
+#  register: _v2_secret_list
+        
+        
+        
+        
+        
+        
+        
+        
+        

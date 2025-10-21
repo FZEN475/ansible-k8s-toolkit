@@ -1,0 +1,115 @@
+# disc_resize/tasks/main.yml
+
+- name: Validate logical volume name
+  block:
+    - assert:
+        that:
+         - lv_name is defined
+        fail_msg: "Ошибка: имя гического раздела должно быть задано!"
+        success_msg: "lv_name проверено успешно."
+
+- name: Get all LV paths
+  ansible.builtin.command: lvs --noheadings -o lv_name,vg_name,lv_path
+  register: lvs_info
+  changed_when: false
+
+- name: Debug lvs_info
+  ansible.builtin.debug:
+    var: lvs_info
+
+- name: Build lvs_list
+  ansible.builtin.include_tasks: build_lvs_list.yml
+  loop: "{{ lvs_info.stdout_lines }}"
+  loop_control:
+    loop_var: logical_volume_record
+
+# Проверяем список найденных LV
+- name: Debug lvs_list
+  ansible.builtin.debug:
+    var: lvs_list
+
+- name: lv_name check
+  ansible.builtin.assert:
+    that:
+      - lv_name in lvs_list
+    fail_msg: "Логический том {{ lv_name }} не найден в lvs_list"
+    success_msg: "Логический том {{ lv_name }} найден"
+
+- name: Expand disk partitions with growpart (run, do not fail immediately)
+  ansible.builtin.command: growpart {{ item | regex_replace('([0-9]+)$', '') }} {{ item | regex_search('([0-9]+)$') }}
+  loop: "{{ lvs_list[lv_name].pv_list | default([]) }}"
+  register: growpart_results
+  failed_when: growpart_results.rc > 1
+
+- name: Debug growpart_results
+  ansible.builtin.debug:
+    var: growpart_results
+
+- name: Gather filesystem info for LV
+  ansible.builtin.command: lsblk -no FSTYPE {{ lvs_list[lv_name].lv_path }}
+  register: fs_type
+  changed_when: false
+
+- name: Debug fs_type
+  ansible.builtin.debug:
+    var: fs_type
+
+- name: Combine growpart results with filesystem info
+  ansible.builtin.set_fact:
+    lvs_list: >-
+      {{
+        lvs_list | combine({
+          lv_name: lvs_list[lv_name] | combine({
+            "fs_type": fs_type.stdout
+          })
+        })
+      }}
+
+- name: Debug lvs_list
+  ansible.builtin.debug:
+    var: lvs_list
+
+- name: Expand logical volume for ext4
+  ansible.builtin.command: lvextend -l +100%FREE {{ lvs_list[lv_name].lv_path }}
+  register: lvextend_ext4
+  failed_when: lvextend_ext4.rc not in [0, 5]
+
+- name: Debug lvextend_ext4
+  ansible.builtin.debug:
+    var: lvextend_ext4
+
+- block:
+    - name: Resize ext4 filesystem
+      ansible.builtin.command: resize2fs {{ lvs_list[lv_name].lv_path }}
+      register: resize_ext4
+    - name: Debug resize_ext4
+      ansible.builtin.debug:
+        var: resize_ext4
+  when: lvs_list[lv_name].fs_type == "ext4"
+
+- block:
+    - name: Resize xfs filesystem
+      ansible.builtin.command: xfs_growfs {{ lvs_list[lv_name].lv_path }}
+      register: resize_xfs
+    - name: Debug resize_xfs
+      ansible.builtin.debug:
+        var: resize_xfs
+  when: lvs_list[lv_name].fs_type == "xfs"
+
+- name: Show final LV size
+  ansible.builtin.command: lvs
+  register: lvs_final
+  changed_when: false
+
+- name: Show filesystem usage
+  ansible.builtin.command: df -h {{ lvs_list[lv_name].lv_path }}
+  register: fs_final
+  changed_when: false
+
+- name: Debug final results
+  ansible.builtin.debug:
+    msg: lvs_final.stdout_lines +
+#
+#      FS final:
+#        {{ fs_final.stdout_lines | join('\n        ') }}
+
