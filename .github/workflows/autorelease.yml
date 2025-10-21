@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Build Ansible Collection
         run: |
@@ -27,7 +27,7 @@ jobs:
         run: ls -l packages
 
       - name: Upload package artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ansible-collection
           path: packages/*.tar.gz
