@@ -235,7 +235,7 @@
         __policy_string: |
           {% for path, items in __merged_path_list.items() %}
           {% for item in items %}
-          path "{{ path }}/{{ item.name }}" { capabilities = ["read"] }
+          path "{{ path }}/data/{{ item.name }}" { capabilities = ["read"] }
           {% endfor %}
           {% endfor %}
     
