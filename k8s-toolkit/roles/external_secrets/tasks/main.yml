@@ -1,6 +1,6 @@
 - name: Validate input parameters
   vars:
-    ss_valid: [ 'SecretStore', 'ClusterSecretStore' ]
+    ss_valid: ['role', 'policy', 'secret' ]
     es_valid: [ 'ExternalSecret', 'ClusterExternalSecret' ]
   block:
 
@@ -9,6 +9,15 @@
       assert:
         that:
           - resource_name is defined and resource_name | length > 0
+          - resource_namespace is defined and resource_namespace | length > 0
+        fail_msg: "Ошибка: Не заданы обязательные параметры ресурса (resource_name или resource_namespace)"
+        success_msg: "Основные параметры ресурса проверены успешно."
+
+    # Группа 1: Основные параметры ресурса
+    - name: Validate secret_scope
+      assert:
+        that:
+          - secret_scope is defined and secret_scope in
           - resource_namespace is defined and resource_namespace | length > 0
         fail_msg: "Ошибка: Не заданы обязательные параметры ресурса (resource_name или resource_namespace)"
         success_msg: "Основные параметры ресурса проверены успешно."
@@ -95,6 +104,11 @@
 - name: Debug create_ss
   ansible.builtin.debug:
     var: create_ss
+
+- name: Debug merged_compiled_secret_data
+  ansible.builtin.debug:
+    var: merged_compiled_secret_data
+
 
 #- name: Initialize compiled secret list
 #  ansible.builtin.set_fact:

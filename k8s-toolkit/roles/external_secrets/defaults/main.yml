@@ -1,4 +1,6 @@
 ---
+  
+secret_scope: 'secret' # ['role', 'policy', 'secret' ]
 
 vault_role_list:
   example-policy:
