@@ -39,17 +39,27 @@
           policy_name: (
             compiled_secret_data[policy_name] | default({}) | combine({
               (policy_name ~ '-' ~ path_name): (
-                (compiled_secret_data[policy_name] | default({})).get(policy_name ~ '-' ~ path_name, []) +
-                [{
-                  'secretKey': (record_entry.extra_parameters | default({})).get('secretKey', record_entry.name),
-                  'remoteRef': {
-                    'conversionStrategy': 'Default',
-                    'decodingStrategy': (record_entry.extra_parameters | default({})).get('decodingStrategy', None),
-                    'key': ns_name ~ '/' ~ service_name ~ '/' ~ path_name,
-                    'metadataPolicy': 'None',
-                    'property': record_entry.name
-                  }
-                }]
+                {
+                  'data': (record_entry.extra_parameters | default({})).get('data', ''),
+                  'list': (
+                    (
+                      (compiled_secret_data[policy_name] | default({}))
+                      .get(policy_name ~ '-' ~ path_name, {'data': '', 'list': []})
+                      .list
+                    ) + [
+                      {
+                        'secretKey': (record_entry.extra_parameters | default({})).get('secretKey', record_entry.name),
+                        'remoteRef': {
+                          'conversionStrategy': 'Default',
+                          'decodingStrategy': (record_entry.extra_parameters | default({})).get('decodingStrategy', None),
+                          'key': ns_name ~ '/' ~ service_name ~ '/' ~ path_name,
+                          'metadataPolicy': 'None',
+                          'property': record_entry.name
+                        }
+                      }
+                    ]
+                  )
+                }
               )
             })
           )
