@@ -77,13 +77,13 @@
         fail_msg: "Ошибка: каждый элемент __pgsql должен содержать обязательные ключи."
         success_msg: "Элементы __pgsql проверены успешно."
 
-
+- name: Initialize __path_lists
+  ansible.builtin.set_fact:
+    __path_lists: {}
+    
 - name: extra path
   block:
-    - name: Initialize __extra_path_list
-      ansible.builtin.set_fact:
-        __extra_path_list: {}
-        
+
     - name: extra secrets
       ansible.builtin.include_tasks: secrets/extra_path_manager.yml
       vars:
@@ -96,16 +96,13 @@
       loop_control:
         loop_var: __extra_item
 
-    - name: Debug __extra_path_list
+    - name: Debug __path_lists
       ansible.builtin.debug:
-        var: __extra_path_list
+        var: __path_lists
         
 - name: KV2
   block:
-    - name: Initialize __kv2_path_list
-      ansible.builtin.set_fact:
-        __kv2_path_list: {}
-     
+
     - name: KV2 secrets
       ansible.builtin.include_tasks: secrets/kv2_manager.yml
       vars:
@@ -117,16 +114,13 @@
       loop: "{{ __kv2 }}"
       loop_control:
         loop_var: __kv2_item
-    
-    - name: Debug __kv2_path_list
+
+    - name: Debug __path_lists
       ansible.builtin.debug:
-        var: __kv2_path_list
+        var: __path_lists
 
 - name: PGSQL
   block:
-    - name: Initialize __pgsql_path_list
-      ansible.builtin.set_fact:
-        __pgsql_path_list: {}
 
     - name: PGSQL secrets
       ansible.builtin.include_tasks: secrets/pgsql_manager.yml
@@ -146,37 +140,13 @@
       loop_control:
         loop_var: __pgsql_item
 
-    - name: Debug __pgsql_path_list
+    - name: Debug __path_lists
       ansible.builtin.debug:
-        var: __pgsql_path_list
-
-- name: Define list of lists to merge
-  ansible.builtin.set_fact:
-    __path_lists:
-      - "{{ __extra_path_list}}"
-      - "{{ __kv2_path_list }}"
-      - "{{ __pgsql_path_list }}"
+        var: __path_lists
 
 - name: Debug __path_lists
   ansible.builtin.debug:
     var: __path_lists
-
-- name: Merge all dicts with list append
-  ansible.builtin.set_fact:
-    __merged_path_list: "{{ __path_lists | combine(list_merge='append_rp', recursive=True) }}"
-
-- name: Debug __merged_path_list
-  ansible.builtin.debug:
-    var: __merged_path_list
-
-- name: Remove duplicates in lists
-  ansible.builtin.set_fact:
-    __merged_path_list: "{{ __merged_path_list | combine({item.key: item.value | unique}) }}"
-  loop: "{{ __merged_path_list | dict2items }}"
-
-- name: Debug __merged_path_list
-  ansible.builtin.debug:
-    var: __merged_path_list
 
 - name: DELETE action
   block:
@@ -223,7 +193,7 @@
         msg: >
           Ошибка при удалении роли доступа или получении токена.
           Детали: {{ ansible_failed_task.name }} — {{ ansible_failed_result.msg }}
-  when: __merged_path_list | length == 0
+  when: __path_lists | length == 0
 
 - name: Update action
   block:
@@ -247,7 +217,7 @@
     - name: Generate __policy_string
       ansible.builtin.set_fact:
         __policy_string: |
-          {% for path, items in __merged_path_list.items() %}
+          {% for path, items in __path_lists.items() %}
           {% for item in items %}
           path "{{ path }}/data/{{ item.name }}" { capabilities = ["read"] }
           {% endfor %}
@@ -276,7 +246,7 @@
         
     - name: Generate _policy_result_list
       ansible.builtin.set_fact:
-        _policy_result_list: "{{ _policy_result_list | default({}) | combine({ __policy_name: __merged_path_list }) }}"
+        _policy_result_list: "{{ _policy_result_list | default({}) | combine({ __policy_name: __path_lists }) }}"
         
   rescue:
     - name: Explain failure
@@ -284,7 +254,7 @@
         msg: >
           Ошибка при создании роли доступа или получении токена.
           Детали: {{ ansible_failed_task.name }} — {{ ansible_failed_result.msg }}        
-  when: __merged_path_list | length > 0
+  when: __path_lists | length > 0
 
 
 
