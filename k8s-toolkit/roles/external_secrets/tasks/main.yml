@@ -20,8 +20,8 @@
         that:
           - secret_scope is defined and secret_scope in scope_valid
           - resource_namespace is defined and resource_namespace | length > 0
-        fail_msg: "Ошибка: Не заданы обязательные параметры ресурса (resource_name или resource_namespace)"
-        success_msg: "Основные параметры ресурса проверены успешно."
+        fail_msg: "Ошибка: Не заданы обязательные параметры secret_scope [ 'role', 'policy', 'secret' ]"
+        success_msg: "secret_scope проверен успешно."
 
     # Группа 2: Параметры политики
     - name: Validate policy parameters
