@@ -18,34 +18,3 @@
   loop_control:
     loop_var: ns_entry
     
-- name: Merge compiled_secret_data by secretKey
-  set_fact:
-    merged_compiled_secret_data: >-
-      {{
-        merged_compiled_secret_data | default({}) |
-        combine(
-          {
-            item.key: (
-              merged_compiled_secret_data[item.key] | default({}) |
-              combine(
-                {
-                  subkey: (
-                    merged_compiled_secret_data[item.key][subkey] | default([]) +
-                    [
-                      element
-                      for element in compiled_secret_data[item.key][subkey]
-                      if element.secretKey not in (
-                        merged_compiled_secret_data[item.key][subkey] | default([]) | map(attribute='secretKey') | list
-                      )
-                    ]
-                  )
-                  for subkey in compiled_secret_data[item.key] | list
-                },
-                recursive=True
-              )
-            )
-          },
-          recursive=True
-        )
-      }}
-  loop: "{{ compiled_secret_data | dict2items }}"
