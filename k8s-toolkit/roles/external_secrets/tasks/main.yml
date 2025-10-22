@@ -75,19 +75,9 @@
   ansible.builtin.debug:
     var: policy_dict
 
-- name: Initialize vault_role_definitions_flat
+- name: Initialize compiled_secret_data
   ansible.builtin.set_fact:
     compiled_secret_data: {}
-
-- name: Initialize policy in flat dict
-  set_fact:
-    compiled_secret_data: >-
-      {{
-        compiled_secret_data | combine({
-            policy_name: {}
-          })
-        })
-      }}
 
 - name: Process each policy in role
   vars:
