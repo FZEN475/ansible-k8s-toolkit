@@ -43,7 +43,7 @@
   ansible.builtin.set_fact:
     _policy_result_list: {}
 
-- name: KV2 secrets
+- name: policy manager
   ansible.builtin.include_tasks: policy/policy_manager.yml
   vars:
     __auth: "{{ _auth }}"

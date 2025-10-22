@@ -40,7 +40,7 @@
         success_msg: "Путь '__policy_name' проверен успешно."
 
     - name: Validate each item in __extra_path
-      loop: "{{ __extra_path | default([]]) }}"
+      loop: "{{ __extra_path | default([]) }}"
       loop_control:
         loop_var: extra_item
       assert:
@@ -100,8 +100,6 @@
       ansible.builtin.debug:
         var: __extra_path_list
         
-        
-
 - name: KV2
   block:
     - name: Initialize __kv2_path_list
