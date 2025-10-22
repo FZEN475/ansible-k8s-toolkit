@@ -1,0 +1,17 @@
+
+- name: Debug ns_name
+  ansible.builtin.debug:
+    var: ns_name
+
+- name: Debug service
+  ansible.builtin.debug:
+    var: service
+
+- name: Iterate secret paths within policy
+  vars:
+    service_name: "{{ service_entry.key }}"
+    path: "{{ service_entry.value }}"
+  ansible.builtin.include_tasks: process_service.yml
+  loop: "{{ service | dict2items }}"
+  loop_control:
+    loop_var: service_entry

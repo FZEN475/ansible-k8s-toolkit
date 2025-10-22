@@ -141,18 +141,18 @@
 #          include_role:
 #            name: library.k8s_toolkit.external_secrets
 #          vars:
-#            resource_name: "{{ vault_policy.key }}"
+#            resource_name: "{{ vault_role.key }}"
 #            resource_namespace: 'default'
 #            secret_store:
 #              ss_access_zone: 'SecretStore'
 #              server: 'https://vault.secrets.svc:8200'
 #            external_secret:
 #              es_access_zone: 'ExternalSecret'
-#            vault_access_role_name: "{{ vault_policy.key }}"
-#            policy_list: "{{ vault_policy.value }}"
+#            vault_access_role_name: "{{ vault_role.key }}"
+#            policy_dict: "{{ vault_role.value }}"
 #          loop: "{{ vault_role_definitions | dict2items }}"
 #          loop_control:
-#            loop_var: vault_policy
+#            loop_var: vault_role
 
 
 #    - name: Пример создания ca.key+ca.crt

@@ -71,125 +71,155 @@
       }
     }) }}"
 
-- name: Debug policy_list
+- name: Debug policy_dict
   ansible.builtin.debug:
-    var: policy_list
+    var: policy_dict
 
-- name: Initialize compiled secret list
+- name: Initialize vault_role_definitions_flat
   ansible.builtin.set_fact:
-    compiled_secret_data: []
+    compiled_secret_data: {}
 
-- name: Iterate secret paths within policy
-  ansible.builtin.include_tasks: data_generator/policy_data.yml
-  loop: "{{ policy_list | dict2items }}"
+- name: Initialize policy in flat dict
+  set_fact:
+    compiled_secret_data: >-
+      {{
+        compiled_secret_data | combine({
+            policy_name: {}
+          })
+        })
+      }}
+
+- name: Process each policy in role
+  vars:
+    policy_name: "{{ policy_entry.key }}"
+    ns: "{{ policy_entry.value }}"
+  ansible.builtin.include_tasks: _1_process_policy.yml
+  loop: "{{ policy_dict | dict2items }}"
   loop_control:
     loop_var: policy_entry
-  
-- name: Debug compiled_secret_data
-  ansible.builtin.debug:
-    var: compiled_secret_data
-
-- name: DELETE action
-  block:
-    - name: "Remove secret-store {{ resource_namespace }}/{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }} ({{ secret_store.ss_access_zone }})"
-      kubernetes.core.k8s:
-        state: "absent"
-        definition:
-          apiVersion: external-secrets.io/v1beta1
-          kind: "{{ secret_store.ss_access_zone }}"
-          metadata:
-            name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
-            namespace: "{{ resource_namespace }}"
-
-    - name: "Remove external-secret {{ resource_namespace }}/{{ resource_name }}{{ postfix_map[external_secret.es_access_zone] }} ({{ external_secret.es_access_zone }})"
-      kubernetes.core.k8s:
-        state: "absent"
-        definition:
-          apiVersion: external-secrets.io/v1beta1
-          kind: "{{ external_secret.es_access_zone }}"
-          metadata:
-            name: "{{ resource_name }}{{ postfix_map[external_secret.es_access_zone] }}"
-            namespace: "{{ resource_namespace }}"
-  when: compiled_secret_data | length == 0
-
-- name: Update action
-  block:
-    - name: "Update store {{ resource_namespace }}/{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }} ({{ secret_store.ss_access_zone }})"
-      kubernetes.core.k8s:
-        state: "present"
-        apply: true
-        definition:
-          apiVersion: external-secrets.io/v1beta1
-          kind: "{{ secret_store.ss_access_zone }}"
-          metadata:
-            name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
-            namespace: "{{ resource_namespace }}"
-          spec:
-            retrySettings:
-              retryInterval: "60s"
-            provider:
-              vault:
-                server: "{{ secret_store.server }}"
-                version: "v2"
-                namespace: "{{ resource_namespace }}"
-                caProvider: "{{ _ca_provider }}"
-                auth: "{{ _auth }}"
-
-    - name: Update action
-      block:
-        - name: "Update external-secret {{ resource_namespace }}/{{ resource_name }}{{ postfix_map[external_secret.es_access_zone] }} ({{ external_secret.es_access_zone }})"
-          kubernetes.core.k8s:
-            state: "present"
-            apply: true
-            definition:
-              apiVersion: external-secrets.io/v1beta1
-              kind: "{{ external_secret.es_access_zone }}"
-              metadata:
-                name: "{{ resource_name }}{{ postfix_map[external_secret.es_access_zone] }}"
-                namespace: "{{ resource_namespace }}"
-              spec:
-                secretStoreRef:
-                  name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
-                  kind: "{{ secret_store.ss_access_zone }}"
-                target:
-                  name: "{{ resource_name }}-secrets"
-                  creationPolicy: Owner
-                  deletionPolicy: Delete
-                  template:
-                    data: "{{ external_secret.template_data | default(omit,true) }}"
-                    type: "{{ external_secret.secret_type | default('Opaque',true) }}"
-                data: "{{ compiled_secret_data }}"
-      when: secret_per_policy is not defined or secret_per_policy == false
-    - name: Update action
-      block:
-
-        - name: "Update external-secret {{ resource_namespace }}/{{ resource_name }}{{ postfix_map[external_secret.es_access_zone] }} ({{ external_secret.es_access_zone }})"
-          kubernetes.core.k8s:
-            state: "present"
-            apply: true
-            definition:
-              apiVersion: external-secrets.io/v1beta1
-              kind: "{{ external_secret.es_access_zone }}"
-              metadata:
-                name: "{{ resource_name }}{{ postfix_map[external_secret.es_access_zone] }}"
-                namespace: "{{ resource_namespace }}"
-              spec:
-                secretStoreRef:
-                  name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
-                  kind: "{{ secret_store.ss_access_zone }}"
-                target:
-                  name: "{{ resource_name }}-secrets"
-                  creationPolicy: Owner
-                  deletionPolicy: Delete
-                  template:
-                    data: "{{ external_secret.template_data | default(omit,true) }}"
-                    type: "{{ external_secret.secret_type | default('Opaque',true) }}"
-                data: "{{ compiled_secret_data }}"
 
 
-      when: secret_per_policy is defined or secret_per_policy == true
-                
-                
-  when: compiled_secret_data | length > 0
 
+
+
+
+
+#- name: Initialize compiled secret list
+#  ansible.builtin.set_fact:
+#    compiled_secret_data: []
+#
+#
+#- name: Iterate secret paths within policy
+#  ansible.builtin.include_tasks: data_generator/policy_data.yml
+#  loop: "{{ policy_list | dict2items }}"
+#  loop_control:
+#    loop_var: policy_entry
+#
+#- name: Debug compiled_secret_data
+#  ansible.builtin.debug:
+#    var: compiled_secret_data
+#
+#- name: DELETE action
+#  block:
+#    - name: "Remove secret-store {{ resource_namespace }}/{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }} ({{ secret_store.ss_access_zone }})"
+#      kubernetes.core.k8s:
+#        state: "absent"
+#        definition:
+#          apiVersion: external-secrets.io/v1beta1
+#          kind: "{{ secret_store.ss_access_zone }}"
+#          metadata:
+#            name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
+#            namespace: "{{ resource_namespace }}"
+#
+#    - name: "Remove external-secret {{ resource_namespace }}/{{ resource_name }}{{ postfix_map[external_secret.es_access_zone] }} ({{ external_secret.es_access_zone }})"
+#      kubernetes.core.k8s:
+#        state: "absent"
+#        definition:
+#          apiVersion: external-secrets.io/v1beta1
+#          kind: "{{ external_secret.es_access_zone }}"
+#          metadata:
+#            name: "{{ resource_name }}{{ postfix_map[external_secret.es_access_zone] }}"
+#            namespace: "{{ resource_namespace }}"
+#  when: compiled_secret_data | length == 0
+#
+#- name: Update action
+#  block:
+#    - name: "Update store {{ resource_namespace }}/{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }} ({{ secret_store.ss_access_zone }})"
+#      kubernetes.core.k8s:
+#        state: "present"
+#        apply: true
+#        definition:
+#          apiVersion: external-secrets.io/v1beta1
+#          kind: "{{ secret_store.ss_access_zone }}"
+#          metadata:
+#            name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
+#            namespace: "{{ resource_namespace }}"
+#          spec:
+#            retrySettings:
+#              retryInterval: "60s"
+#            provider:
+#              vault:
+#                server: "{{ secret_store.server }}"
+#                version: "v2"
+#                namespace: "{{ resource_namespace }}"
+#                caProvider: "{{ _ca_provider }}"
+#                auth: "{{ _auth }}"
+#
+#    - name: Update action
+#      block:
+#        - name: "Update external-secret {{ resource_namespace }}/{{ resource_name }}{{ postfix_map[external_secret.es_access_zone] }} ({{ external_secret.es_access_zone }})"
+#          kubernetes.core.k8s:
+#            state: "present"
+#            apply: true
+#            definition:
+#              apiVersion: external-secrets.io/v1beta1
+#              kind: "{{ external_secret.es_access_zone }}"
+#              metadata:
+#                name: "{{ resource_name }}{{ postfix_map[external_secret.es_access_zone] }}"
+#                namespace: "{{ resource_namespace }}"
+#              spec:
+#                secretStoreRef:
+#                  name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
+#                  kind: "{{ secret_store.ss_access_zone }}"
+#                target:
+#                  name: "{{ resource_name }}-secrets"
+#                  creationPolicy: Owner
+#                  deletionPolicy: Delete
+#                  template:
+#                    data: "{{ external_secret.template_data | default(omit,true) }}"
+#                    type: "{{ external_secret.secret_type | default('Opaque',true) }}"
+#                data: "{{ compiled_secret_data }}"
+#      when: secret_per_policy is not defined or secret_per_policy == false
+#    - name: Update action
+#      block:
+#
+#        - name: "Update external-secret {{ resource_namespace }}/{{ resource_name }}{{ postfix_map[external_secret.es_access_zone] }} ({{ external_secret.es_access_zone }})"
+#          kubernetes.core.k8s:
+#            state: "present"
+#            apply: true
+#            definition:
+#              apiVersion: external-secrets.io/v1beta1
+#              kind: "{{ external_secret.es_access_zone }}"
+#              metadata:
+#                name: "{{ resource_name }}{{ postfix_map[external_secret.es_access_zone] }}"
+#                namespace: "{{ resource_namespace }}"
+#              spec:
+#                secretStoreRef:
+#                  name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
+#                  kind: "{{ secret_store.ss_access_zone }}"
+#                target:
+#                  name: "{{ resource_name }}-secrets"
+#                  creationPolicy: Owner
+#                  deletionPolicy: Delete
+#                  template:
+#                    data: "{{ external_secret.template_data | default(omit,true) }}"
+#                    type: "{{ external_secret.secret_type | default('Opaque',true) }}"
+#                data: "{{ compiled_secret_data }}"
+#
+#
+#      when: secret_per_policy is defined or secret_per_policy == true
+#
+#
+#  when: compiled_secret_data | length > 0
+#
 

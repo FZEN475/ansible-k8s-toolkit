@@ -1,0 +1,63 @@
+- name: Debug policy_name
+  ansible.builtin.debug:
+    var: policy_name
+
+- name: Debug ns
+  ansible.builtin.debug:
+    var: ns
+
+- name: Debug ns_name
+  ansible.builtin.debug:
+    var: ns_name
+
+- name: Debug service
+  ansible.builtin.debug:
+    var: service
+
+- name: Debug service_name
+  ansible.builtin.debug:
+    var: service_name
+
+- name: Debug service
+  ansible.builtin.debug:
+    var: path
+
+- name: Debug path_name
+  ansible.builtin.debug:
+    var: path_name
+
+- name: Debug record_list
+  ansible.builtin.debug:
+    var: record_list
+
+- name: Initialize secret_store.auth
+  ansible.builtin.set_fact:
+    create_ss: true
+    compiled_secret_data: >-
+      {{
+        compiled_secret_data | combine({
+          policy_name: (
+            compiled_secret_data[policy_name] | default({}) | combine({
+              (policy_name ~ '-' ~ path_name): (
+                (compiled_secret_data[policy_name] | default({})).get(policy_name ~ '-' ~ path_name, []) +
+                [{
+                  'secretKey': (record_entry.extra_parameters | default({})).get('secretKey', record_entry.name),
+                  'remoteRef': {
+                    'conversionStrategy': 'Default',
+                    'decodingStrategy': (record_entry.extra_parameters | default({})).get('decodingStrategy', None),
+                    'key': ns_name ~ '/' ~ service_name ~ '/' ~ path_name,
+                    'metadataPolicy': 'None',
+                    'property': record_entry.name
+                  }
+                }]
+              )
+            })
+          )
+        })
+      }}
+  loop: "{{ record_list }}"
+  loop_control:
+    loop_var: record_entry
+      
+      
+      
