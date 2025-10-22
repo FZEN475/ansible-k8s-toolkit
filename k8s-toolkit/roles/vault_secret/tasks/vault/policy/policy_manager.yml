@@ -40,14 +40,15 @@
         success_msg: "Путь '__policy_name' проверен успешно."
 
     - name: Validate each item in __extra_path
-      loop: "{{ __extra_path | default({}) | dict2items }}"
+      loop: "{{ __extra_path | default([]]) }}"
       loop_control:
-        loop_var: item
+        loop_var: extra_item
       assert:
         that:
-          - item.value is iterable
-          - item.value | length > 0
-        fail_msg: "Ошибка: каждый элемент __extra_path должен содержать непустой список ключей."
+          - extra_item.engine_mount_point is defined and extra_item.engine_mount_point | length > 0
+          - extra_item.service is defined and extra_item.service | length > 0
+          - extra_item.name is defined and extra_item.name | length > 0
+        fail_msg: "Ошибка: каждый элемент __extra_path должен содержать обязательные ключи."
         success_msg: "Элементы __extra_path проверены успешно."
 
     - name: Validate __kv2 items
@@ -56,8 +57,10 @@
         loop_var: kv2_item
       assert:
         that:
-          - kv2_item.path is defined and kv2_item.path | length > 0
           - kv2_item.engine_mount_point is defined and kv2_item.engine_mount_point | length > 0
+          - kv2_item.service is defined and kv2_item.service | length > 0
+          - kv2_item.name is defined and kv2_item.name | length > 0
+          
         fail_msg: "Ошибка: каждый элемент __pgsql должен содержать обязательные ключи."
         success_msg: "Элементы __pgsql проверены успешно."
 
@@ -74,6 +77,31 @@
         fail_msg: "Ошибка: каждый элемент __pgsql должен содержать обязательные ключи."
         success_msg: "Элементы __pgsql проверены успешно."
 
+
+- name: extra path
+  block:
+    - name: Initialize __extra_path_list
+      ansible.builtin.set_fact:
+        __extra_path_list: {}
+        
+    - name: extra secrets
+      ansible.builtin.include_tasks: secrets/extra_path_manager.yml
+      vars:
+#        ___auth: "{{ __auth }}"
+        ___engine_mount_point: "{{ __extra_item.engine_mount_point }}"
+        ___service:  "{{ __extra_item.service }}"
+        ___name: "{{ __extra_item.name }}"
+        ___key_list: "{{ __extra_item.key_list }}"
+      loop: "{{ __extra_path }}"
+      loop_control:
+        loop_var: __extra_item
+
+    - name: Debug __extra_path_list
+      ansible.builtin.debug:
+        var: __extra_path_list
+        
+        
+
 - name: KV2
   block:
     - name: Initialize __kv2_path_list
@@ -84,8 +112,9 @@
       ansible.builtin.include_tasks: secrets/kv2_manager.yml
       vars:
         ___auth: "{{ __auth }}"
-        ___path: "{{ __kv2_item.path }}"
         ___engine_mount_point: "{{ __kv2_item.engine_mount_point }}"
+        ___service:  "{{ __kv2_item.service }}"
+        ___name: "{{ __kv2_item.name }}"
         ___key_list: "{{ __kv2_item.key_list }}"
       loop: "{{ __kv2 }}"
       loop_control:
@@ -97,11 +126,11 @@
 
 - name: PGSQL
   block:
-    - name: Initialize __kv2_path_list
+    - name: Initialize __pgsql_path_list
       ansible.builtin.set_fact:
         __pgsql_path_list: {}
 
-    - name: KV2 secrets
+    - name: PGSQL secrets
       ansible.builtin.include_tasks: secrets/pgsql_manager.yml
       vars:
         ___auth: "{{ __auth }}"
@@ -123,25 +152,12 @@
       ansible.builtin.debug:
         var: __pgsql_path_list
 
-- name: Normalize __extra_path
-  ansible.builtin.set_fact:
-    __extra_path_normalized: >-
-      {{
-        dict(
-          (__extra_path | default({})).keys() | zip(
-            (__extra_path | default({})).values()
-            | map('map', 'regex_replace', '^(.*)$', '{"name": "\1", "extra_parameters": {}}')
-            | map('map', 'from_yaml')
-          )
-        )
-      }}
-
 - name: Define list of lists to merge
   ansible.builtin.set_fact:
     __path_lists:
+      - "{{ __extra_path_list}}"
       - "{{ __kv2_path_list }}"
       - "{{ __pgsql_path_list }}"
-      - "{{ __extra_path_normalized | default({}) }}"
 
 - name: Debug __path_lists
   ansible.builtin.debug:
