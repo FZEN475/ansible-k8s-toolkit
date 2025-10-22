@@ -88,11 +88,13 @@
   loop_control:
     loop_var: policy_entry
 
+- name: Debug compiled_secret_data
+  ansible.builtin.debug:
+    var: compiled_secret_data
 
-
-
-
-
+- name: Debug create_ss
+  ansible.builtin.debug:
+    var: create_ss
 
 #- name: Initialize compiled secret list
 #  ansible.builtin.set_fact:
