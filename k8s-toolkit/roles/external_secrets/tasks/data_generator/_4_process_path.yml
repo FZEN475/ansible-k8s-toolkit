@@ -30,7 +30,7 @@
   ansible.builtin.debug:
     var: record_list
 
-- name: Initialize record_list_entry
+- name: Initialize compiled_secret_data
   ansible.builtin.set_fact:
     create_ss: true
     compiled_secret_data: >-
@@ -69,7 +69,7 @@
   loop_control:
     loop_var: record_entry
       
-- name: Initialize record_list_entry
+- name: Initialize compiled_policy_data
   ansible.builtin.set_fact:
     create_ss: true
     compiled_policy_data: >-
@@ -109,7 +109,7 @@
   loop_control:
     loop_var: record_entry
       
-- name: Initialize record_list_entry
+- name: Initialize compiled_role_data
   ansible.builtin.set_fact:
     create_ss: true
     compiled_role_data: >-

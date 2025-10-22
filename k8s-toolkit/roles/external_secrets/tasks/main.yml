@@ -89,6 +89,14 @@
   ansible.builtin.set_fact:
     compiled_secret_data: {}
 
+- name: Initialize compiled_policy_data
+  ansible.builtin.set_fact:
+    compiled_policy_data: {}
+
+- name: Initialize compiled_role_data
+  ansible.builtin.set_fact:
+    compiled_role_data: {}
+
 - name: Process process_policy_entry
   vars:
     policy_name: "{{ policy_entry.key }}"
