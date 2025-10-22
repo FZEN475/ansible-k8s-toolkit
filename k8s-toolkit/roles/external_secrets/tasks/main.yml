@@ -79,7 +79,7 @@
   ansible.builtin.set_fact:
     compiled_secret_data: {}
 
-- name: Process each policy in role
+- name: Process process_policy_entry
   vars:
     policy_name: "{{ policy_entry.key }}"
     ns: "{{ policy_entry.value }}"

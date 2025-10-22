@@ -30,7 +30,7 @@
   ansible.builtin.debug:
     var: record_list
 
-- name: Initialize secret_store.auth
+- name: Initialize record_list_entry
   ansible.builtin.set_fact:
     create_ss: true
     compiled_secret_data: >-

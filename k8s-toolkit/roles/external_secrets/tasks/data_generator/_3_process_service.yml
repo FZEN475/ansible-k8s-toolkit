@@ -7,7 +7,7 @@
   ansible.builtin.debug:
     var: path
 
-- name: Iterate secret paths within policy
+- name: Iterate process_path_entry
   vars:
     path_name: "{{ path_entry.key }}"
     record_list: "{{ path_entry.value }}"

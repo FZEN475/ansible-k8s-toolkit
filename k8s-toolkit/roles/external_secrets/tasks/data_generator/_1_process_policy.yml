@@ -9,7 +9,7 @@
 
 
 
-- name: Iterate secret paths within policy
+- name: Iterate process_ns_entry
   vars:
     ns_name: "{{ ns_entry.key }}"
     service: "{{ ns_entry.value }}"
