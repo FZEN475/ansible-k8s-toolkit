@@ -106,10 +106,13 @@
   ansible.builtin.debug:
     var: create_ss
 
-- name: Debug merged_compiled_secret_data
+- name: Debug compiled_policy_data
   ansible.builtin.debug:
-    var: merged_compiled_secret_data
+    var: compiled_policy_data
 
+- name: Debug compiled_role_data
+  ansible.builtin.debug:
+    var: compiled_role_data
 
 #- name: Initialize compiled secret list
 #  ansible.builtin.set_fact:
