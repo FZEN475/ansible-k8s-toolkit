@@ -17,8 +17,8 @@
     - name: Validate policy parameters
       assert:
         that:
-          - policy_list is defined
-        fail_msg: "Ошибка: Политика не задана корректно (policy_list={{ policy_list }})"
+          - policy_dict is defined
+        fail_msg: "Ошибка: Политика не задана (policy_dict={{ policy_dict }})"
         success_msg: "Параметры политики проверены успешно."
 
     # Группа 3: Параметры SecretStore
