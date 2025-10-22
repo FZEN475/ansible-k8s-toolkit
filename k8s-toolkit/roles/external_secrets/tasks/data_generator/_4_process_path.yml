@@ -69,5 +69,72 @@
   loop_control:
     loop_var: record_entry
       
+- name: Initialize record_list_entry
+  ansible.builtin.set_fact:
+    create_ss: true
+    compiled_policy_data: >-
+      {{
+        compiled_secret_data | default({}) | combine({
+          policy_name: (
+            compiled_secret_data[policy_name] | default({'data': '', 'list': []}) | combine({
+              'data': (
+                (record_entry.extra_parameters | default({})).get('data', '')
+                or compiled_secret_data[policy_name].get('data', '')
+                if compiled_secret_data.get(policy_name)
+                else (record_entry.extra_parameters | default({})).get('data', '')
+              ),
+              'list': (
+                (
+                  compiled_secret_data[policy_name].get('list', [])
+                  if compiled_secret_data.get(policy_name)
+                  else []
+                ) + [
+                  {
+                    'secretKey': (record_entry.extra_parameters | default({})).get('secretKey', record_entry.name),
+                    'remoteRef': {
+                      'conversionStrategy': 'Default',
+                      'decodingStrategy': (record_entry.extra_parameters | default({})).get('decodingStrategy', None),
+                      'key': ns_name ~ '/' ~ service_name ~ '/' ~ path_name,
+                      'metadataPolicy': 'None',
+                      'property': record_entry.name
+                    }
+                  }
+                ]
+              )
+            })
+          )
+        })
+      }}
+  loop: "{{ record_list }}"
+  loop_control:
+    loop_var: record_entry
       
-      
+- name: Initialize record_list_entry
+  ansible.builtin.set_fact:
+    create_ss: true
+    compiled_role_data: >-
+      {{
+        (compiled_secret_data | default({'data': '', 'list': []})) | combine({
+          'data': (
+            (record_entry.extra_parameters | default({})).get('data', '')
+            or compiled_secret_data.get('data', '')
+          ),
+          'list': (
+            (compiled_secret_data.get('list', [])) + [
+              {
+                'secretKey': (record_entry.extra_parameters | default({})).get('secretKey', record_entry.name),
+                'remoteRef': {
+                  'conversionStrategy': 'Default',
+                  'decodingStrategy': (record_entry.extra_parameters | default({})).get('decodingStrategy', None),
+                  'key': ns_name ~ '/' ~ service_name ~ '/' ~ path_name,
+                  'metadataPolicy': 'None',
+                  'property': record_entry.name
+                }
+              }
+            ]
+          )
+        })
+      }}
+  loop: "{{ record_list }}"
+  loop_control:
+    loop_var: record_entry
