@@ -41,6 +41,17 @@
                           extra_parameters:
                             secretKey: "static_1"
                             decodingStrategy: "None"
+                            data:
+                              filename: !unsafe |
+                                {{- define "makeServiceNamespace" }}
+                                  {{- $A := 1 }}
+                                    {{- if eq $A 1 }}
+                                {{- printf "%s:%s" .username .password | b64enc -}}
+                                    {{- else }}
+                                {{- print .username -}}
+                                  {{- end }}
+                                {{- end }}
+                                {"auths":{"https://{{ .host }}/v2/":{"username":"{{ .username }}","password":"{{ .password }}","email":"admin@fzen.pro","auth":"{{- template "makeServiceNamespace" . -}}"}}}
                   _kv2:
                     - engine_mount_point: "dev"
                       service: "example"
