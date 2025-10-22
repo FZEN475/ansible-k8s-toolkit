@@ -1,6 +1,7 @@
 - name: Validate input parameters
   vars:
-    ss_valid: ['role', 'policy', 'secret' ]
+    scope_valid: [ 'role', 'policy', 'secret' ]
+    ss_valid: [ 'SecretStore', 'ClusterSecretStore' ]
     es_valid: [ 'ExternalSecret', 'ClusterExternalSecret' ]
   block:
 
@@ -17,7 +18,7 @@
     - name: Validate secret_scope
       assert:
         that:
-          - secret_scope is defined and secret_scope in
+          - secret_scope is defined and secret_scope in scope_valid
           - resource_namespace is defined and resource_namespace | length > 0
         fail_msg: "Ошибка: Не заданы обязательные параметры ресурса (resource_name или resource_namespace)"
         success_msg: "Основные параметры ресурса проверены успешно."
