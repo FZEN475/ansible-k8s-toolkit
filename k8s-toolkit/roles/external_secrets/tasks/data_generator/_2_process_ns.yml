@@ -11,7 +11,7 @@
   vars:
     service_name: "{{ service_entry.key }}"
     path: "{{ service_entry.value }}"
-  ansible.builtin.include_tasks: process_service.yml
+  ansible.builtin.include_tasks: _3_process_service.yml
   loop: "{{ service | dict2items }}"
   loop_control:
     loop_var: service_entry

@@ -83,7 +83,7 @@
   vars:
     policy_name: "{{ policy_entry.key }}"
     ns: "{{ policy_entry.value }}"
-  ansible.builtin.include_tasks: _1_process_policy.yml
+  ansible.builtin.include_tasks: data_generator/_1_process_policy.yml
   loop: "{{ policy_dict | dict2items }}"
   loop_control:
     loop_var: policy_entry
