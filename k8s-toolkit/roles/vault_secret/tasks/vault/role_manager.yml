@@ -48,9 +48,9 @@
   vars:
     __auth: "{{ _auth }}"
     __policy_name: "{{ _policy_item._policy_name }}"
-    __extra_path: "{{ _policy_item._extra_path | default([]) }}"
-    __kv2: "{{ _policy_item._kv2 | default([]) }}"
-    __pgsql: "{{ _policy_item._pgsql | default([]) }}"
+    __extra_path: "{{ _policy_item._extra_path | default([],true) }}"
+    __kv2: "{{ _policy_item._kv2 | default([],true) }}"
+    __pgsql: "{{ _policy_item._pgsql | default([],true) }}"
   loop: "{{ _policy_list }}"
   loop_control:
     loop_var: _policy_item
