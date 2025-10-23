@@ -25,8 +25,8 @@ jobs:
         run: |
           mkdir -p packages
           ansible-galaxy collection build "$COLLECTION_PATH" --output-path packages
-          ls -l /packages
-          FILE=$(ls /packages/*.tar.gz | head -n 1)
+          ls -l packages
+          FILE=$(ls packages/*.tar.gz | head -n 1)
           echo "file=$FILE" >> $GITHUB_OUTPUT
 
       - name: List built packages

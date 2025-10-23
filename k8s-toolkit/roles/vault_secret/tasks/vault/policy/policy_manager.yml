@@ -96,7 +96,7 @@
       loop_control:
         loop_var: __extra_item
 
-    - name: Debug __path_lists
+    - name: Debug extra secrets __path_lists
       ansible.builtin.debug:
         var: __path_lists
         
@@ -115,7 +115,7 @@
       loop_control:
         loop_var: __kv2_item
 
-    - name: Debug __path_lists
+    - name: Debug KV2 secrets __path_lists
       ansible.builtin.debug:
         var: __path_lists
 
@@ -140,11 +140,11 @@
       loop_control:
         loop_var: __pgsql_item
 
-    - name: Debug __path_lists
+    - name: Debug PGSQL secrets __path_lists
       ansible.builtin.debug:
         var: __path_lists
 
-- name: Debug __path_lists
+- name: Debug result __path_lists
   ansible.builtin.debug:
     var: __path_lists
 
