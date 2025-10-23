@@ -32,7 +32,7 @@
               kubernetes_service_account_namespace: "default"
               policy_list: #[]
                 - _policy_name: "example-resource"
-                  _extra_path:
+                  _kv2_extra_path:
                     - engine_mount_point: "secrets"
                       service: "example"
                       name: 'example'

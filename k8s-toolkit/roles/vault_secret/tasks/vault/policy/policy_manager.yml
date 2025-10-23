@@ -3,13 +3,14 @@
 #  role_id:                        # обязательно, не пустое
 #  jwt_token:                      # обязательно, не пустое
 #  mount_point:                    # не обязательно: default "jwt"
-#__policy_name                      # обязательно, не пустое
-#__extra_path:                      # список, может быть пустым
-#__kv2:                             # список, может быть пустым
+#__policy_name                     # обязательно, не пустое
+#__kv2_extra_path:                 # список, может быть пустым
+#__kv2:                            # список, может быть пустым
 #  - path:                         # обязательно, не пустое
 #    engine_mount_point:           # обязательно, не пустое
 #    key_list:                     # список, может быть пустым
-#__pgsql:                           # список, может быть пустым
+#__pgsql_extra_path:               # список, может быть пустым
+#__pgsql:                          # список, может быть пустым
 #  - db_con_role_name:             # обязательно, не пустое
 #    engine_mount_point:           # обязательно, не пустое
 #    type:                         # обязательно, один из вариантов ['role', 'static-role']
@@ -77,31 +78,39 @@
         fail_msg: "Ошибка: каждый элемент __pgsql должен содержать обязательные ключи."
         success_msg: "Элементы __pgsql проверены успешно."
 
-- name: Initialize __path_lists
+- name: Initialize __compare_path_lists
   ansible.builtin.set_fact:
-    __path_lists: {}
-    
-- name: extra path
+    __combine_path_lists: {}
+
+- name: Initialize __compare_policy_string
+  ansible.builtin.set_fact:
+    __combine_policy_string: ""
+
+- name: KV2
   block:
 
-    - name: extra secrets
+    - name: Initialize __KV2_path_lists
+      ansible.builtin.set_fact:
+        __path_lists: {}
+
+    - name: Initialize __KV2_path_lists
+      ansible.builtin.set_fact:
+        __policy_string: ""
+
+    - name: kv2 extra secrets
       ansible.builtin.include_tasks: secrets/extra_path_manager.yml
       vars:
-#        ___auth: "{{ __auth }}"
         ___engine_mount_point: "{{ __extra_item.engine_mount_point }}"
         ___service:  "{{ __extra_item.service }}"
         ___name: "{{ __extra_item.name }}"
         ___key_list: "{{ __extra_item.key_list }}"
-      loop: "{{ __extra_path }}"
+      loop: "{{ __kv2_extra_path }}"
       loop_control:
         loop_var: __extra_item
 
     - name: Debug extra secrets __path_lists
       ansible.builtin.debug:
         var: __path_lists
-        
-- name: KV2
-  block:
 
     - name: KV2 secrets
       ansible.builtin.include_tasks: secrets/kv2_manager.yml
@@ -118,9 +127,48 @@
     - name: Debug KV2 secrets __path_lists
       ansible.builtin.debug:
         var: __path_lists
+        
+    - name: Generate __policy_string
+      ansible.builtin.set_fact:
+        __policy_string: |
+          {% for env, projects in __path_lists.items() %}
+          {% for project, categories in projects.items() %}
+          {% for category, secrets in categories.items() %}
+          path "{{ env }}/data/{{ project }}/{{ category }}" { capabilities = ["read"] }
+
+          {% endfor %}
+          {% endfor %}
+          {% endfor %}
+
+- name: Сombine path lists
+  set_fact:
+    __combine_path_lists: "{{ __combine_path_lists | combine(__path_lists, recursive=True) }}"
+
+- name: Сombine policy string
+  set_fact:
+    __combine_policy_string: "{{ __combine_policy_string ~ __policy_string }}"
 
 - name: PGSQL
   block:
+
+    - name: Initialize __PGSQL_path_lists
+      ansible.builtin.set_fact:
+        __path_lists: {}
+
+    - name: Initialize __PGSQL_policy_string
+      ansible.builtin.set_fact:
+        __policy_string: ""
+
+    - name: pgsql extra secrets
+      ansible.builtin.include_tasks: secrets/extra_path_manager.yml
+      vars:
+        ___engine_mount_point: "{{ __extra_item.engine_mount_point }}"
+        ___service:  "{{ __extra_item.service }}"
+        ___name: "{{ __extra_item.name }}"
+        ___key_list: "{{ __extra_item.key_list }}"
+      loop: "{{ __pgsql_extra_path }}"
+      loop_control:
+        loop_var: __extra_item
 
     - name: PGSQL secrets
       ansible.builtin.include_tasks: secrets/pgsql_manager.yml
@@ -143,10 +191,34 @@
     - name: Debug PGSQL secrets __path_lists
       ansible.builtin.debug:
         var: __path_lists
+        
+    - name: Generate __policy_string
+      ansible.builtin.set_fact:
+        __policy_string: |
+          {% for env, projects in __path_lists.items() %}
+          {% for project, categories in projects.items() %}
+          {% for category, secrets in categories.items() %}
+          path "{{ env }}/{{ project }}/{{ category }}" { capabilities = ["read"] }
 
-- name: Debug result __path_lists
+          {% endfor %}
+          {% endfor %}
+          {% endfor %}
+        
+- name: Сombine path lists
+  set_fact:
+    __combine_path_lists: "{{ __combine_path_lists | combine(__path_lists, recursive=True) }}"
+
+- name: Сombine policy string
+  set_fact:
+    __combine_policy_string: "{{ __combine_policy_string ~ __policy_string }}"
+
+- name: Debug __combine_path_lists
   ansible.builtin.debug:
-    var: __path_lists
+    var: __combine_path_lists
+    
+- name: Debug __combine_policy_string
+  ansible.builtin.debug:
+    var: __combine_policy_string
 
 - name: DELETE action
   block:
@@ -193,7 +265,7 @@
         msg: >
           Ошибка при удалении роли доступа или получении токена.
           Детали: {{ ansible_failed_task.name }} — {{ ansible_failed_result.msg }}
-  when: __path_lists | length == 0
+  when: __combine_path_lists | length == 0
 
 - name: Update action
   block:
@@ -214,25 +286,6 @@
       ansible.builtin.set_fact:
         __vault_token: "{{ login_response.json.auth.client_token }}"
 
-    - name: Generate __policy_string
-      ansible.builtin.set_fact:
-        __policy_string: |
-          {% for env, projects in __path_lists.items() %}
-          {% for project, categories in projects.items() %}
-          {% for category, secrets in categories.items() %}
-          {% for secret in secrets %}
-          
-          path "{{ env }}/data/{{ project }}/{{ category }}/{{ secret.name }}" { capabilities = ["read"] }
-          
-          {% endfor %}
-          {% endfor %}
-          {% endfor %}
-          {% endfor %}
-    
-    - name: Debug __policy_string
-      ansible.builtin.debug:
-        var: __policy_string
-
     - name: Update access policy
       ansible.builtin.uri:
         url: "{{ __auth.server }}/v1/sys/policy/{{ __policy_name }}"
@@ -242,7 +295,7 @@
         return_content: yes
         headers:
           X-Vault-Token: "{{ __vault_token }}"
-        body: "{{ {'policy': __policy_string} | to_json }}"
+        body: "{{ {'policy': __combine_policy_string} | to_json }}"
         status_code: [200, 204]
       register: update_response
 
@@ -252,7 +305,7 @@
         
     - name: Generate _policy_result_list
       ansible.builtin.set_fact:
-        _policy_result_list: "{{ _policy_result_list | default({}) | combine({ __policy_name: __path_lists }) }}"
+        _policy_result_list: "{{ _policy_result_list | default({}) | combine({ __policy_name: __combine_path_lists }) }}"
         
     - name: "Debug {{ __policy_name }} _policy_result_list"
       ansible.builtin.debug:
@@ -264,7 +317,7 @@
         msg: >
           Ошибка при создании роли доступа или получении токена.
           Детали: {{ ansible_failed_task.name }} — {{ ansible_failed_result.msg }}        
-  when: __path_lists | length > 0
+  when: __combine_path_lists | length > 0
 
 
 
