@@ -132,7 +132,11 @@
 - name: Debug compiled_role_data
   ansible.builtin.debug:
     var: compiled_role_data
-  
+
+- name: Инициализация флага
+  set_fact:
+    skip_recursive: false
+
 - name: "External secrets {{ 'present' if secret_scope == 'secret' else 'absent' }}"
   ansible.builtin.include_tasks: recursive_loop.yml
   loop: "{{ compiled_secret_data | dict2items }}"
