@@ -221,8 +221,8 @@
             {%- for project, categories in projects.items() -%}
               {%- for category, secrets in categories.items() -%}
                 {%- for secret in secrets -%}
-          path "{{ env }}/{{ project }}/{{ category }}/{{ secret.name }}" { capabilities = ["read"] }\n
-                {%- endfor -%}
+          path "{{ env }}/{{ project }}/{{ category }}/{{ secret.name }}" { capabilities = ["read"] }
+                {% endfor -%}
               {%- endfor -%}
             {%- endfor -%}
           {%- endfor -%}

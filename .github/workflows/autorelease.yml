@@ -22,16 +22,17 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build Ansible Collection
+        id: build_collection
         run: |
           mkdir -p packages
           ansible-galaxy collection build "$COLLECTION_PATH" --output-path packages
-          ls -l packages
           FILE=$(ls packages/*.tar.gz | head -n 1)
           echo "file=$FILE" >> $GITHUB_OUTPUT
 
-      - name: List built packages
-        run: ls -l packages
-
+      - name: Debug output variable
+        run: |
+          echo "Built file: ${{ steps.build_collection.outputs.file }}
+             
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
@@ -49,10 +50,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      
+
       - name: Upload package to Release
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ${{ steps.build_collection.outputs.file }}
-          asset_name: ${{ steps.build_collection.outputs.file }}
+          asset_name: $(basename ${{ steps.build_collection.outputs.file }})
           asset_content_type: application/gzip
