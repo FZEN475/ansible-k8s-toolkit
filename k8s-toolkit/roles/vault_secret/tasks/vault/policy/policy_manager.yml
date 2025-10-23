@@ -222,10 +222,10 @@
               {%- for category, secrets in categories.items() -%}
                 {%- for secret in secrets -%}
           path "{{ env }}/{{ project }}/{{ category }}/{{ secret.name }}" { capabilities = ["read"] }
-                {% endfor -%}
+                {%- endfor -%}
               {%- endfor -%}
             {%- endfor -%}
-          {%- endfor -%}
+          {% endfor -%}
     
     - name: Debug __policy_string
       ansible.builtin.debug:
@@ -252,7 +252,7 @@
       ansible.builtin.set_fact:
         _policy_result_list: "{{ _policy_result_list | default({}) | combine({ __policy_name: __path_lists }) }}"
         
-    - name: "Debug ({ __policy_name }} _policy_result_list"
+    - name: "Debug {{ __policy_name }} _policy_result_list"
       ansible.builtin.debug:
         var: _policy_result_list
       
