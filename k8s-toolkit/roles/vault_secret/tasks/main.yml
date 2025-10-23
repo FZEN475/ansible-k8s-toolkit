@@ -83,7 +83,7 @@
             role_id: "{{ vault_access.role_with_access }}"
             jwt_token: "{{ jwt_token }}"
             mount_point: "{{ vault_access.jwt_mount_point | default('jwt') }}"
-          _role_name: "{{ client_access.role_name }}"
+          _role_name: "{{ client_access.role_name }}-role"
           _role_sa: "{{ client_access.kubernetes_service_account }}"
           _role_sa_ns: "{{ client_access.kubernetes_service_account_namespace }}"
           _policy_list: "{{ client_access.policy_list }}"
