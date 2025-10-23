@@ -224,8 +224,8 @@
           path "{{ env }}/{{ project }}/{{ category }}/{{ secret.name }}" { capabilities = ["read"] }
                 {%- endfor -%}
               {%- endfor -%}
-            {%- endfor -%}
-          {% endfor -%}
+            {%- endfor %}
+          {% endfor %}
     
     - name: Debug __policy_string
       ansible.builtin.debug:
