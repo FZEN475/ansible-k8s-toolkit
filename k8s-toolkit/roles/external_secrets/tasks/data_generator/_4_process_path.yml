@@ -40,7 +40,8 @@
             compiled_secret_data[policy_name] | default({}) | combine({
               (policy_name ~ '-' ~ path_name): (
                 {
-                  'data': (record_entry.extra_parameters | default({})).get('data', ''),
+                  'secret_type': (record_entry.extra_parameters | default({})).get('secret_type', ''),
+                  'template_data': (record_entry.extra_parameters | default({})).get('template_data', ''),
                   'list': (
                     (
                       (compiled_secret_data[policy_name] | default({}))
@@ -77,11 +78,13 @@
         compiled_policy_data | default({}) | combine({
           policy_name: (
             compiled_policy_data[policy_name] | default({'data': '', 'list': []}) | combine({
-              'data': (
-                (record_entry.extra_parameters | default({})).get('data', '')
-                or compiled_policy_data[policy_name].get('data', '')
-                if compiled_policy_data.get(policy_name)
-                else (record_entry.extra_parameters | default({})).get('data', '')
+              'secret_type': (
+                (compiled_policy_data.get(policy_name, {}) or {}).get('secret_type', '')
+                  or (record_entry.extra_parameters | default({})).get('secret_type', '')
+              ),
+              'template_data': (
+                ((compiled_policy_data.get(policy_name, {}) or {}).get('template_data', {}) | default({}))
+                  | combine((record_entry.extra_parameters | default({})).get('template_data', {}) | default({}))
               ),
               'list': (
                 (
@@ -115,9 +118,13 @@
     compiled_role_data: >-
       {{
         (compiled_role_data | default({'data': '', 'list': []})) | combine({
-          'data': (
-            (record_entry.extra_parameters | default({})).get('data', '')
-            or compiled_role_data.get('data', '')
+          'secret_type': (
+            compiled_role_data.get('secret_type', '')
+              or (record_entry.extra_parameters | default({})).get('secret_type', '')
+          ),
+          'template_data': (
+            (compiled_role_data.get('template_data', {}) | default({}))
+              | combine((record_entry.extra_parameters | default({})).get('template_data', {}) | default({}))
           ),
           'list': (
             (compiled_role_data.get('list', [])) + [

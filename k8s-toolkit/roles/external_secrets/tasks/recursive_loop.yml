@@ -1,0 +1,37 @@
+
+- name: Проверка, есть ли data или list
+  set_fact:
+    skip_recursive: true
+  when: >
+    (current_node.list is defined and current_node.list | type_debug == 'list')
+
+- name: Вывод ключа текущего узла
+  include_tasks: external_secret.yml
+  vars:
+    _es_state: "{{ es_state }}"
+    _es_namespace: "{{ es_namespace }}"
+    _es_name: "{{ item.key }}{{ postfix_map[es_access_zone] }}"
+    _es_access_zone: "{{ es_access_zone }}"
+    _ss_name: "{{ ss_name }}"
+    _ss_access_zone: "{{ ss_access_zone }}"
+    _secret_name: "{{ item.key }}-secrets"
+    _secret_type: "{{ current_node.secret_type | default('Opaque',true) }}"
+    _template_data: "{{ current_node.template_data | default({}) }}"
+    _secret_list: "{{ current_node.list }}"
+  when: >
+    (current_node.list is defined and current_node.list | type_debug == 'list')
+
+- name: Рекурсивный вызов для дочерних узлов
+  include_tasks: recursive_loop.yml
+  loop: "{{ current_node | dict2items }}"
+  loop_control:
+    loop_var: item
+  vars:
+    current_node: "{{ item.value }}"
+  when:
+    - current_node | type_debug == 'dict'
+    - not skip_recursive
+
+- name: Сброс флага после рекурсии
+  set_fact:
+    skip_recursive: false

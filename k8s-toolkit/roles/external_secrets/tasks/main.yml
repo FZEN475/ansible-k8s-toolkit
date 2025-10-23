@@ -105,14 +105,25 @@
   loop: "{{ policy_dict | dict2items }}"
   loop_control:
     loop_var: policy_entry
+    
+- name: Debug create_ss
+  ansible.builtin.debug:
+    var: create_ss
+
+- name: "Secret store {{ 'present' if create_ss else 'absent' }}"
+  vars:
+    ss_state: "{{ 'present' if create_ss else 'absent' }}"
+    ss_namespace: "{{ resource_namespace }}"
+    ss_name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
+    ss_access_zone: "{{ secret_store.ss_access_zone }}"
+    server: "{{ secret_store.server }}"
+    _ca_provider: "{{ _ca_provider }}"
+    _auth: "{{ _auth }}"
+  ansible.builtin.include_tasks: secret_store.yml
 
 - name: Debug compiled_secret_data
   ansible.builtin.debug:
     var: compiled_secret_data
-
-- name: Debug create_ss
-  ansible.builtin.debug:
-    var: create_ss
 
 - name: Debug compiled_policy_data
   ansible.builtin.debug:
@@ -121,22 +132,49 @@
 - name: Debug compiled_role_data
   ansible.builtin.debug:
     var: compiled_role_data
+  
+- name: "External secrets {{ 'present' if secret_scope == 'secret' else 'absent' }}"
+  ansible.builtin.include_tasks: recursive_loop.yml
+  loop: "{{ compiled_secret_data | dict2items }}"
+  loop_control:
+    loop_var: item
+  vars:
+    current_node: "{{ item.value }}"
+    es_state: "{{ 'present' if secret_scope == 'secret' else 'absent' }}"
+    es_namespace: "{{ resource_namespace }}"
+    es_access_zone: "{{ external_secret.es_access_zone }}"
+    ss_name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
+    ss_access_zone: "{{ secret_store.ss_access_zone }}"
+  when: secret_scope == 'secret'
 
-#- name: Initialize compiled secret list
-#  ansible.builtin.set_fact:
-#    compiled_secret_data: []
-#
-#
-#- name: Iterate secret paths within policy
-#  ansible.builtin.include_tasks: data_generator/policy_data.yml
-#  loop: "{{ policy_list | dict2items }}"
-#  loop_control:
-#    loop_var: policy_entry
-#
-#- name: Debug compiled_secret_data
-#  ansible.builtin.debug:
-#    var: compiled_secret_data
-#
+- name: "Policy external secrets {{ 'present' if secret_scope == 'policy' else 'absent' }}"
+  ansible.builtin.include_tasks: recursive_loop.yml
+  loop: "{{ compiled_policy_data | dict2items }}"
+  loop_control:
+    loop_var: item
+  vars:
+    current_node: "{{ item.value }}"
+    es_state: "{{ 'present' if secret_scope == 'policy' else 'absent' }}"
+    es_namespace: "{{ resource_namespace }}"
+    es_access_zone: "{{ external_secret.es_access_zone }}"
+    ss_name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
+    ss_access_zone: "{{ secret_store.ss_access_zone }}"
+  when: secret_scope == 'policy'
+  
+- name: "External secrets {{ 'present' if secret_scope == 'role' else 'absent' }}"
+  ansible.builtin.include_tasks: recursive_loop.yml
+  loop: "{{ compiled_role_data | dict2items }}"
+  loop_control:
+    loop_var: item
+  vars:
+    current_node: "{{ item.value }}"
+    es_state: "{{ 'present' if secret_scope == 'role' else 'absent' }}"
+    es_namespace: "{{ resource_namespace }}"
+    es_access_zone: "{{ external_secret.es_access_zone }}"
+    ss_name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
+    ss_access_zone: "{{ secret_store.ss_access_zone }}"
+  when: secret_scope == 'role'
+
 #- name: DELETE action
 #  block:
 #    - name: "Remove secret-store {{ resource_namespace }}/{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }} ({{ secret_store.ss_access_zone }})"

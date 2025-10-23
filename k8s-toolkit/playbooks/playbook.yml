@@ -41,7 +41,7 @@
                           extra_parameters:
                             secretKey: "static_1"
                             decodingStrategy: "None"
-                            data:
+                            template_data:
                               filename: !unsafe |
                                 {{- define "makeServiceNamespace" }}
                                   {{- $A := 1 }}
