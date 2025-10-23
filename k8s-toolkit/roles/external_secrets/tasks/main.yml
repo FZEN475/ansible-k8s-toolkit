@@ -117,8 +117,8 @@
     ss_name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
     ss_access_zone: "{{ secret_store.ss_access_zone }}"
     server: "{{ secret_store.server }}"
-    _ca_provider: "{{ _ca_provider }}"
-    _auth: "{{ _auth }}"
+    __ca_provider: "{{ _ca_provider }}"
+    __auth: "{{ _auth }}"
   ansible.builtin.include_tasks: secret_store.yml
 
 - name: Debug compiled_secret_data
