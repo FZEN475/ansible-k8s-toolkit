@@ -5,16 +5,16 @@
   when: >
     (current_node.list is defined and current_node.list | type_debug == 'list')
 
-- name: "Action {{ es_state }} on {{ item.key }}{{ postfix_map[es_access_zone] }} external secret"
+- name: "Action {{ es_state }} on {{ item.key | regex_replace('[^a-z0-9-]', '-') | regex_replace('^-+|-+$', '') }}{{ postfix_map[es_access_zone] | regex_replace('[^a-z0-9-]', '-') | regex_replace('^-+|-+$', '') }} external secret"
   include_tasks: external_secret.yml
   vars:
     _es_state: "{{ es_state }}"
     _es_namespace: "{{ es_namespace }}"
-    _es_name: "{{ item.key }}{{ postfix_map[es_access_zone] }}"
+    _es_name: "{{ (item.key ~ postfix_map[es_access_zone]) | regex_replace('[^a-z0-9-]', '-') | regex_replace('^-+|-+$', '') }}"
     _es_access_zone: "{{ es_access_zone }}"
     _ss_name: "{{ ss_name }}"
     _ss_access_zone: "{{ ss_access_zone }}"
-    _secret_name: "{{ item.key }}-secrets"
+    _secret_name: "{{ (item.key ~ '-secrets') | regex_replace('[^a-z0-9-]', '-') | regex_replace('^-+|-+$', '') }}"
     _secret_type: "{{ current_node.secret_type | default('Opaque',true) }}"
     _template_data: "{{ current_node.template_data | default({}) }}"
     _secret_list: "{{ current_node.list }}"
