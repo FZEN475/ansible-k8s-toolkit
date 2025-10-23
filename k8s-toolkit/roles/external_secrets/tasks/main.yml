@@ -145,7 +145,6 @@
     es_access_zone: "{{ external_secret.es_access_zone }}"
     ss_name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
     ss_access_zone: "{{ secret_store.ss_access_zone }}"
-  when: secret_scope == 'secret'
 
 - name: "Policy external secrets {{ 'present' if secret_scope == 'policy' else 'absent' }}"
   ansible.builtin.include_tasks: recursive_loop.yml
@@ -159,7 +158,6 @@
     es_access_zone: "{{ external_secret.es_access_zone }}"
     ss_name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
     ss_access_zone: "{{ secret_store.ss_access_zone }}"
-  when: secret_scope == 'policy'
   
 - name: "External secrets {{ 'present' if secret_scope == 'role' else 'absent' }}"
   ansible.builtin.include_tasks: recursive_loop.yml
@@ -173,7 +171,6 @@
     es_access_zone: "{{ external_secret.es_access_zone }}"
     ss_name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
     ss_access_zone: "{{ secret_store.ss_access_zone }}"
-  when: secret_scope == 'role'
 
 #- name: DELETE action
 #  block:

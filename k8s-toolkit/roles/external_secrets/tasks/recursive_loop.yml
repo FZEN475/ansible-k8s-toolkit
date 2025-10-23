@@ -1,11 +1,11 @@
 
-- name: Проверка, есть ли data или list
+- name: "skip_recursive = {{ (current_node.list is defined and current_node.list | type_debug == 'list') }}"
   set_fact:
     skip_recursive: true
   when: >
     (current_node.list is defined and current_node.list | type_debug == 'list')
 
-- name: Вывод ключа текущего узла
+- name: "Action {{ es_state }} on {{ item.key }}{{ postfix_map[es_access_zone] }} external secret"
   include_tasks: external_secret.yml
   vars:
     _es_state: "{{ es_state }}"
@@ -21,7 +21,7 @@
   when: >
     (current_node.list is defined and current_node.list | type_debug == 'list')
 
-- name: Рекурсивный вызов для дочерних узлов
+- name: Go to next node 
   include_tasks: recursive_loop.yml
   loop: "{{ current_node | dict2items }}"
   loop_control:
@@ -32,6 +32,6 @@
     - current_node | type_debug == 'dict'
     - not skip_recursive
 
-- name: Сброс флага после рекурсии
+- name: Reset skip_recursive
   set_fact:
     skip_recursive: false
