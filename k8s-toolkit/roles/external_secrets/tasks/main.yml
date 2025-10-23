@@ -165,7 +165,7 @@
   
 - name: "External secrets {{ 'present' if secret_scope == 'role' else 'absent' }}"
   ansible.builtin.include_tasks: recursive_loop.yml
-  loop: "{{ compiled_role_data | dict2items }}"
+  loop: "{{ { resource_name: compiled_role_data } | dict2items }}"
   loop_control:
     loop_var: item
   vars:
