@@ -7,7 +7,9 @@
   ansible.builtin.debug:
     var: ns
 
-
+- name: Initialize _secret_data
+  ansible.builtin.set_fact:
+    _secret_data: {}
 
 - name: Iterate process_ns_entry
   vars:
@@ -17,4 +19,26 @@
   loop: "{{ ns | dict2items }}"
   loop_control:
     loop_var: ns_entry
-    
+  
+- name: "Action {{ 'present' if (_secret_data.get('list', []) else 'absent' }} external-secret {{ resource_namespace }}/{{ policy_name }}{{ postfix_map[external_secret.es_access_zone] }} ({{ postfix_map[external_secret.es_access_zone] }})"
+  kubernetes.core.k8s:
+    state: "{{ 'present' if (_secret_data.get('list', []) | length > 0) else 'absent' }}"
+    apply: true
+    definition:
+      apiVersion: external-secrets.io/v1beta1
+      kind: "{{ external_secret.es_access_zone }}"
+      metadata:
+        name: "{{ policy_name }}{{ postfix_map[external_secret.es_access_zone] }}"
+        namespace: "{{ resource_namespace }}"
+      spec:
+        secretStoreRef:
+          name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
+          kind: "{{ secret_store.ss_access_zone }}"
+        target:
+          name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}-secrets"
+          creationPolicy: Owner
+          deletionPolicy: Delete
+          template:
+            data: "{{ _secret_data.template_data | default(omit,true) }}"
+            type: "{{ _secret_data.secret_type | default('Opaque',true) }}"
+        data: "{{ _secret_data.get('list', []) }}"

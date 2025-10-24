@@ -30,104 +30,104 @@
   ansible.builtin.debug:
     var: record_list
 
-- name: Initialize compiled_secret_data
-  ansible.builtin.set_fact:
-    create_ss: true
-    compiled_secret_data: >-
-      {{
-        compiled_secret_data | default({}) | combine({
-          policy_name: (
-            compiled_secret_data[policy_name] | default({}) | combine({
-              (policy_name ~ '-' ~ path_name): (
-                {
-                  'secret_type': (record_entry.extra_parameters | default({})).get('secret_type', ''),
-                  'template_data': (record_entry.extra_parameters | default({})).get('template_data', ''),
-                  'list': (
-                    (
-                      (compiled_secret_data[policy_name] | default({}))
-                      .get(policy_name ~ '-' ~ path_name, {'data': '', 'list': []})
-                      .list
-                    ) + [
-                      {
-                        'secretKey': (record_entry.extra_parameters | default({})).get('secretKey', record_entry.name),
-                        'remoteRef': {
-                          'conversionStrategy': 'Default',
-                          'decodingStrategy': (record_entry.extra_parameters | default({})).get('decodingStrategy', None),
-                          'key': ns_name ~ '/' ~ service_name ~ '/' ~ path_name,
-                          'metadataPolicy': 'None',
-                          'property': record_entry.name
-                        }
-                      }
-                    ]
-                  )
-                }
-              )
-            })
-          )
-        })
-      }}
-  loop: "{{ record_list }}"
-  loop_control:
-    loop_var: record_entry
+#- name: Initialize compiled_secret_data
+#  ansible.builtin.set_fact:
+#    create_ss: true
+#    compiled_secret_data: >-
+#      {{
+#        compiled_secret_data | default({}) | combine({
+#          policy_name: (
+#            compiled_secret_data[policy_name] | default({}) | combine({
+#              (policy_name ~ '-' ~ path_name): (
+#                {
+#                  'secret_type': (record_entry.extra_parameters | default({})).get('secret_type', ''),
+#                  'template_data': (record_entry.extra_parameters | default({})).get('template_data', ''),
+#                  'list': (
+#                    (
+#                      (compiled_secret_data[policy_name] | default({}))
+#                      .get(policy_name ~ '-' ~ path_name, {'data': '', 'list': []})
+#                      .list
+#                    ) + [
+#                      {
+#                        'secretKey': (record_entry.extra_parameters | default({})).get('secretKey', record_entry.name),
+#                        'remoteRef': {
+#                          'conversionStrategy': 'Default',
+#                          'decodingStrategy': (record_entry.extra_parameters | default({})).get('decodingStrategy', None),
+#                          'key': ns_name ~ '/' ~ service_name ~ '/' ~ path_name,
+#                          'metadataPolicy': 'None',
+#                          'property': record_entry.name
+#                        }
+#                      }
+#                    ]
+#                  )
+#                }
+#              )
+#            })
+#          )
+#        })
+#      }}
+#  loop: "{{ record_list }}"
+#  loop_control:
+#    loop_var: record_entry
+#
+#- name: Initialize compiled_policy_data
+#  ansible.builtin.set_fact:
+#    create_ss: true
+#    compiled_policy_data: >-
+#      {{
+#        compiled_policy_data | default({}) | combine({
+#          policy_name: (
+#            compiled_policy_data[policy_name] | default({'data': '', 'list': []}) | combine({
+#              'secret_type': (
+#                (compiled_policy_data.get(policy_name, {}) or {}).get('secret_type', '')
+#                  or (record_entry.extra_parameters | default({})).get('secret_type', '')
+#              ),
+#              'template_data': (
+#                ((compiled_policy_data.get(policy_name, {}) or {}).get('template_data', {}) | default({}))
+#                  | combine((record_entry.extra_parameters | default({})).get('template_data', {}) | default({}))
+#              ),
+#              'list': (
+#                (
+#                  compiled_policy_data[policy_name].get('list', [])
+#                  if compiled_policy_data.get(policy_name)
+#                  else []
+#                ) + [
+#                  {
+#                    'secretKey': (record_entry.extra_parameters | default({})).get('secretKey', record_entry.name),
+#                    'remoteRef': {
+#                      'conversionStrategy': 'Default',
+#                      'decodingStrategy': (record_entry.extra_parameters | default({})).get('decodingStrategy', None),
+#                      'key': ns_name ~ '/' ~ service_name ~ '/' ~ path_name,
+#                      'metadataPolicy': 'None',
+#                      'property': record_entry.name
+#                    }
+#                  }
+#                ]
+#              )
+#            })
+#          )
+#        })
+#      }}
+#  loop: "{{ record_list }}"
+#  loop_control:
+#    loop_var: record_entry
       
-- name: Initialize compiled_policy_data
+- name: Initialize _secret_data
   ansible.builtin.set_fact:
     create_ss: true
-    compiled_policy_data: >-
+    _secret_data: >-
       {{
-        compiled_policy_data | default({}) | combine({
-          policy_name: (
-            compiled_policy_data[policy_name] | default({'data': '', 'list': []}) | combine({
-              'secret_type': (
-                (compiled_policy_data.get(policy_name, {}) or {}).get('secret_type', '')
-                  or (record_entry.extra_parameters | default({})).get('secret_type', '')
-              ),
-              'template_data': (
-                ((compiled_policy_data.get(policy_name, {}) or {}).get('template_data', {}) | default({}))
-                  | combine((record_entry.extra_parameters | default({})).get('template_data', {}) | default({}))
-              ),
-              'list': (
-                (
-                  compiled_policy_data[policy_name].get('list', [])
-                  if compiled_policy_data.get(policy_name)
-                  else []
-                ) + [
-                  {
-                    'secretKey': (record_entry.extra_parameters | default({})).get('secretKey', record_entry.name),
-                    'remoteRef': {
-                      'conversionStrategy': 'Default',
-                      'decodingStrategy': (record_entry.extra_parameters | default({})).get('decodingStrategy', None),
-                      'key': ns_name ~ '/' ~ service_name ~ '/' ~ path_name,
-                      'metadataPolicy': 'None',
-                      'property': record_entry.name
-                    }
-                  }
-                ]
-              )
-            })
-          )
-        })
-      }}
-  loop: "{{ record_list }}"
-  loop_control:
-    loop_var: record_entry
-      
-- name: Initialize compiled_role_data
-  ansible.builtin.set_fact:
-    create_ss: true
-    compiled_role_data: >-
-      {{
-        (compiled_role_data | default({'data': '', 'list': []})) | combine({
+        (_secret_data | default({'secret_type': '','template_data': {}, 'list': []})) | combine({
           'secret_type': (
-            compiled_role_data.get('secret_type', '')
+            _secret_data.get('secret_type', '')
               or (record_entry.extra_parameters | default({})).get('secret_type', '')
           ),
           'template_data': (
-            (compiled_role_data.get('template_data', {}) | default({}))
+            (_secret_data.get('template_data', {}) | default({}))
               | combine((record_entry.extra_parameters | default({})).get('template_data', {}) | default({}))
           ),
           'list': (
-            (compiled_role_data.get('list', [])) + [
+            (_secret_data.get('list', [])) + [
               {
                 'secretKey': (record_entry.extra_parameters | default({})).get('secretKey', record_entry.name),
                 'remoteRef': {
