@@ -31,6 +31,7 @@
         name: "{{ policy_name }}{{ postfix_map[external_secret.es_access_zone] }}"
         namespace: "{{ resource_namespace }}"
       spec:
+        refreshInterval: "1m"
         secretStoreRef:
           name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
           kind: "{{ secret_store.ss_access_zone }}"
