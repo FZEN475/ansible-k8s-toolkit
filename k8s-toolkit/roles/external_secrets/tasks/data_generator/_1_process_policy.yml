@@ -20,7 +20,7 @@
   loop_control:
     loop_var: ns_entry
   
-- name: "Action {{ 'present' if (_secret_data.get('list', []) else 'absent' }} external-secret {{ resource_namespace }}/{{ policy_name }}{{ postfix_map[external_secret.es_access_zone] }} ({{ postfix_map[external_secret.es_access_zone] }})"
+- name: "Action {{ 'present' if (_secret_data.get('list', []) | length > 0) else 'absent' }} external-secret {{ resource_namespace }}/{{ policy_name }}{{ postfix_map[external_secret.es_access_zone] }} ({{ postfix_map[external_secret.es_access_zone] }})"
   kubernetes.core.k8s:
     state: "{{ 'present' if (_secret_data.get('list', []) | length > 0) else 'absent' }}"
     apply: true
