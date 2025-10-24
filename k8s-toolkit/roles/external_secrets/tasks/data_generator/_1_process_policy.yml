@@ -36,7 +36,7 @@
           name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
           kind: "{{ secret_store.ss_access_zone }}"
         target:
-          name: "{{ policy_name }}{{ postfix_map[external_secret.es_access_zone] }}-secrets"
+          name: "{{ policy_name }}-secrets"
           creationPolicy: Owner
           deletionPolicy: Delete
           template:
