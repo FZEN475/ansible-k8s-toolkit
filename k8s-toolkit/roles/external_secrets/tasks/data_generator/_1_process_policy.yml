@@ -19,7 +19,11 @@
   loop: "{{ ns | dict2items }}"
   loop_control:
     loop_var: ns_entry
-  
+
+- name: Debug _secret_data
+  ansible.builtin.debug:
+    var: _secret_data
+
 - name: "Action {{ 'present' if (_secret_data.get('list', []) | length > 0) else 'absent' }} external-secret {{ resource_namespace }}/{{ policy_name }}{{ postfix_map[external_secret.es_access_zone] }} ({{ postfix_map[external_secret.es_access_zone] }})"
   kubernetes.core.k8s:
     state: "{{ 'present' if (_secret_data.get('list', []) | length > 0) else 'absent' }}"
