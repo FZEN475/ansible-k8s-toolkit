@@ -175,7 +175,7 @@
       vars:
         ___auth: "{{ __auth }}"
         ___db_con_role_name: "{{ __pgsql_item.db_con_role_name }}"
-        ___engine_mount_point: "{{ __pgsql_item.engine_mount_point | default('database') }}"
+        ___engine_mount_point: "{{ __pgsql_item.engine_mount_point | default('database/data') }}"
         ___type: "{{ __pgsql_item.type }}"
         ___connection_name: "{{ __pgsql_item.connection_name }}"
         ___method: "{{ __pgsql_item.method }}"
