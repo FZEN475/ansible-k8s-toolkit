@@ -91,7 +91,7 @@
 
 - name: Combine _policy_result_list with exist policies
   set_fact:
-    _policy_result_list: "{{ _policy_result_list | default({}) | combine({item: {}}) }}"
+    _policy_result_list: "{{ _policy_result_list | default({}) | combine({item: {}}, recursive=True) }}"
   loop: "{{ exist_role.json.data.policies | default([]) }}"
 
 - name: Debug _policy_result_list
