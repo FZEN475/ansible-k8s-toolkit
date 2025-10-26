@@ -33,7 +33,7 @@
       spec:
         refreshInterval: "1m"
         secretStoreRef:
-          name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
+          name: "{{ resource_name }}{{ version | default('v2') }}{{ postfix_map[secret_store.ss_access_zone] }}"
           kind: "{{ secret_store.ss_access_zone }}"
         target:
           name: "{{ policy_name }}-secrets"
