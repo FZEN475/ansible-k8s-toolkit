@@ -73,27 +73,6 @@
   ansible.builtin.set_fact:
     _vault_token: "{{ login_response.json.auth.client_token }}"
 
-- name: Get exist role
-  ansible.builtin.uri:
-    url: "{{ _auth.server }}/v1/auth/{{ _role_mount_point | default('kubernetes') }}/role/{{ _role_name }}"
-    ca_path: '/tmp/vault-ca.crt'
-    method: GET
-    follow_redirects: all
-    return_content: yes
-    headers:
-      X-Vault-Token: "{{ _vault_token }}"
-    status_code: [200, 204, 404]
-  register: exist_role
-
-- name: Debug exist_role
-  ansible.builtin.debug:
-    var: exist_role
-
-- name: Combine _policy_result_list with exist policies
-  set_fact:
-    _policy_result_list: "{{ _policy_result_list | default({}) | combine({item: {}}, recursive=True) }}"
-  loop: "{{ exist_role.json.data.policies | default([]) }}"
-
 - name: Debug _policy_result_list
   ansible.builtin.debug:
     var: _policy_result_list
@@ -173,14 +152,29 @@
       ansible.builtin.set_fact:
         _vault_token: "{{ login_response.json.auth.client_token }}"
 
-
+    - name: Get exist role
+      ansible.builtin.uri:
+        url: "{{ _auth.server }}/v1/auth/{{ _role_mount_point | default('kubernetes') }}/role/{{ _role_name }}"
+        ca_path: '/tmp/vault-ca.crt'
+        method: GET
+        follow_redirects: all
+        return_content: yes
+        headers:
+          X-Vault-Token: "{{ _vault_token }}"
+        status_code: [200, 204, 404]
+      register: exist_role
+    
+    - name: Debug exist_role
+      ansible.builtin.debug:
+        var: exist_role
 
     - name: Generate _role_string
       ansible.builtin.set_fact:
         _role_string:
           bound_service_account_names: "{{ _role_sa }}"
           bound_service_account_namespaces: "{{ _role_sa_ns }}"
-          policies: "{{ _policy_result_list.keys() | list }}"
+          policies: >-
+            {{ (_policy_result_list.keys() | list) + (exist_role.json.data.policies | default([])) | unique }}
           max_ttl: 1800000
 
     - name: Debug _role_string
@@ -215,3 +209,4 @@
           Ошибка при создании роли доступа или получении токена.
           Детали: {{ ansible_failed_task.name }} — {{ ansible_failed_result.msg }}
   when: has_nonempty_policy
+
