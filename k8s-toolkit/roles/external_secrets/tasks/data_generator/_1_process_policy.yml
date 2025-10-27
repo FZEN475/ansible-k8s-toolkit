@@ -3,9 +3,9 @@
   ansible.builtin.debug:
     var: policy_name
 
-- name: Debug ns
+- name: Debug policy_ns
   ansible.builtin.debug:
-    var: ns
+    var: policy_ns
 
 - name: Initialize _secret_data
   ansible.builtin.set_fact:
@@ -16,10 +16,14 @@
     ns_name: "{{ ns_entry.key }}"
     service: "{{ ns_entry.value }}"
   ansible.builtin.include_tasks: _2_process_ns.yml
-  loop: "{{ ns | dict2items }}"
+  loop: "{{ policy_ns | dict2items }}"
   loop_control:
     loop_var: ns_entry
-  
+
+- name: Debug _secret_data
+  ansible.builtin.debug:
+    var: _secret_data
+
 - name: "Action {{ 'present' if (_secret_data.get('list', []) | length > 0) else 'absent' }} external-secret {{ resource_namespace }}/{{ policy_name }}{{ postfix_map[external_secret.es_access_zone] }} ({{ postfix_map[external_secret.es_access_zone] }})"
   kubernetes.core.k8s:
     state: "{{ 'present' if (_secret_data.get('list', []) | length > 0) else 'absent' }}"
