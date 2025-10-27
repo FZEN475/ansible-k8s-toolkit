@@ -104,7 +104,7 @@
 - name: Process process_policy_entry
   vars:
     policy_name: "{{ policy_entry.key }}"
-    ns: "{{ policy_entry.value }}"
+    policy_ns: "{{ policy_entry.value }}"
   ansible.builtin.include_tasks: data_generator/_1_process_policy.yml
   loop: "{{ policy_dict | dict2items }}"
   loop_control:
