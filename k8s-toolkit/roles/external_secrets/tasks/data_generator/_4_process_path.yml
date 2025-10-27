@@ -2,9 +2,9 @@
   ansible.builtin.debug:
     var: policy_name
 
-- name: Debug ns
+- name: Debug policy_ns
   ansible.builtin.debug:
-    var: ns
+    var: policy_ns
 
 - name: Debug ns_name
   ansible.builtin.debug:
