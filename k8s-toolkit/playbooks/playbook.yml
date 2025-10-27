@@ -3,107 +3,149 @@
   gather_facts: yes
   tasks:
 
-    - name: Пример расширения диска после добавления памяти в esxi
-      include_role:
-        name: library.k8s_toolkit.disc_resize
-
-    - name: Установка пакетов
-      include_role:
-        name: library.k8s_toolkit.apt_get
-        
-    - name: Клонирование репозитория по ssh
-      include_role:
-        name: library.k8s_toolkit.git_clone
+#    - name: Пример расширения диска после добавления памяти в esxi
+#      include_role:
+#        name: library.k8s_toolkit.disc_resize
+#
+#    - name: Установка пакетов
+#      include_role:
+#        name: library.k8s_toolkit.apt_get
+#
+#    - name: Клонирование репозитория по ssh
+#      include_role:
+#        name: library.k8s_toolkit.git_clone
 
     - name: Update action
       block:
 
-        - name: Пример создания секрета
+        - name: Vault kv2 secrets
           include_role:
             name: library.k8s_toolkit.vault_secret
           vars:
             vault_access:
-              server_url: "https://vault.secrets.svc:8200"
-              kubernetes_service_account: "vault-sa"
-              role_with_access: "vault-manager"
+              server_url: 'https://vault.secrets.svc:8200'
+              kubernetes_service_account: 'vault-sa'
+              role_with_access: 'vault-manager'
             client_access:
-              role_name: "example-policy" # resource_name
-              kubernetes_service_account: "example-sa"
-              kubernetes_service_account_namespace: "default"
+              role_name: 'test' # resource_name
+              kubernetes_service_account: 'gitlab-sa'
+              kubernetes_service_account_namespace: 'gitlab'
               policy_list: #[]
-                - _policy_name: "example-resource"
+                - _policy_name: 'delete-me-1'
                   _kv2_extra_path:
-                    - engine_mount_point: "secrets"
-                      service: "example"
-                      name: 'example'
+                    - engine_mount_point: 'test'
+                      service: "test"
+                      name: 'test'
                       key_list:
-                        - name: 'static'
-                          extra_parameters:
-                            secretKey: "static_1"
-                            decodingStrategy: "None"
-                            template_data:
-                              filename: !unsafe |
-                                {{- define "makeServiceNamespace" }}
-                                  {{- $A := 1 }}
-                                    {{- if eq $A 1 }}
-                                {{- printf "%s:%s" .username .password | b64enc -}}
-                                    {{- else }}
-                                {{- print .username -}}
-                                  {{- end }}
-                                {{- end }}
-                                {"auths":{"https://{{ .host }}/v2/":{"username":"{{ .username }}","password":"{{ .password }}","email":"admin@fzen.pro","auth":"{{- template "makeServiceNamespace" . -}}"}}}
-                  _kv2:
-                    - engine_mount_point: "dev"
-                      service: "example"
-                      name: 'example-1'
+                        - name: 'test'
+
+        - name: Vault kv2 secrets
+          include_role:
+            name: library.k8s_toolkit.vault_secret
+          vars:
+            vault_access:
+              server_url: 'https://vault.secrets.svc:8200'
+              kubernetes_service_account: 'vault-sa'
+              role_with_access: 'vault-manager'
+            client_access:
+              role_name: 'test' # resource_name
+              kubernetes_service_account: 'gitlab-sa'
+              kubernetes_service_account_namespace: 'gitlab'
+              policy_list: #[]
+                - _policy_name: 'delete-me-2'
+                  _kv2_extra_path:
+                    - engine_mount_point: 'test'
+                      service: "test"
+                      name: 'test'
                       key_list:
-                        - name: 'generate'
-                          method: 'absent'
-                          value_type: 'generate'
-                          extra_parameters:
-                            secretKey: "generate_1"
-                            decodingStrategy: "None"
-                        - name: 'static'
-                          method: 'absent'
-                          value_type: 'static'
-                          value: 'static'
-                        - name: 'manual'
-                          method: 'absent'
-                          value_type: 'manual'
-                  _pgsql:
-                    - db_con_role_name: 'db-example-1'
-                      type: 'static-roles'
-                      connection_name: 'pgsql'
-                      method: 'absent'
-                      db_username: 'gitlab'
-                      extra_parameters:
-                        secretKey: "password1"
-                        decodingStrategy: "None"
-#                      # TODO: Не срабатывает блок DO $$BEGIN, приходится создавать учётную запись заранее
+                        - name: 'test'
+
+#        - name: Пример создания секрета
+#          include_role:
+#            name: library.k8s_toolkit.vault_secret
+#          vars:
+#            vault_access:
+#              server_url: "https://vault.secrets.svc:8200"
+#              kubernetes_service_account: "vault-sa"
+#              role_with_access: "vault-manager"
+#            client_access:
+#              role_name: "example-policy" # resource_name
+#              kubernetes_service_account: "example-sa"
+#              kubernetes_service_account_namespace: "default"
+#              policy_list: #[]
+#                - _policy_name: "example-resource"
+#                  _kv2_extra_path:
+#                    - engine_mount_point: "secrets"
+#                      service: "example"
+#                      name: 'example'
+#                      key_list:
+#                        - name: 'static'
+#                          extra_parameters:
+#                            secretKey: "static_1"
+#                            decodingStrategy: "None"
+#                            template_data:
+#                              filename: !unsafe |
+#                                {{- define "makeServiceNamespace" }}
+#                                  {{- $A := 1 }}
+#                                    {{- if eq $A 1 }}
+#                                {{- printf "%s:%s" .username .password | b64enc -}}
+#                                    {{- else }}
+#                                {{- print .username -}}
+#                                  {{- end }}
+#                                {{- end }}
+#                                {"auths":{"https://{{ .host }}/v2/":{"username":"{{ .username }}","password":"{{ .password }}","email":"admin@fzen.pro","auth":"{{- template "makeServiceNamespace" . -}}"}}}
+#                  _kv2:
+#                    - engine_mount_point: "dev"
+#                      service: "example"
+#                      name: 'example-1'
+#                      key_list:
+#                        - name: 'generate'
+#                          method: 'absent'
+#                          value_type: 'generate'
+#                          extra_parameters:
+#                            secretKey: "generate_1"
+#                            decodingStrategy: "None"
+#                        - name: 'static'
+#                          method: 'absent'
+#                          value_type: 'static'
+#                          value: 'static'
+#                        - name: 'manual'
+#                          method: 'absent'
+#                          value_type: 'manual'
+#                  _pgsql:
+#                    - db_con_role_name: 'db-example-1'
+#                      type: 'static-roles'
+#                      connection_name: 'pgsql'
+#                      method: 'absent'
+#                      db_username: 'gitlab'
+#                      extra_parameters:
+#                        secretKey: "password1"
+#                        decodingStrategy: "None"
+##                      # TODO: Не срабатывает блок DO $$BEGIN, приходится создавать учётную запись заранее
+###                      rotation_statements:
+###                        - !unsafe >-
+###                          DO $$BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = {{name}}) THEN CREATE ROLE {{name}} WITH LOGIN PASSWORD "{{password}}"; END IF; END$$;
+###                        - !unsafe >-
+###                          SELECT 'CREATE ROLE {{name}} WITH LOGIN PASSWORD {{password}}'
+###                          WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname={{name}})
+###                          \gexec
+###                        - !unsafe >-
+###                          ALTER USER {{name}} WITH PASSWORD '{{password}}';
+#                    - db_con_role_name: 'db-example-2'
+#                      type: 'static-roles'
+#                      connection_name: 'pgsql'
+#                      method: 'absent'
+#                      db_username: 'gitlab'
 ##                      rotation_statements:
-##                        - !unsafe >-
-##                          DO $$BEGIN IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = {{name}}) THEN CREATE ROLE {{name}} WITH LOGIN PASSWORD "{{password}}"; END IF; END$$;
-##                        - !unsafe >-
-##                          SELECT 'CREATE ROLE {{name}} WITH LOGIN PASSWORD {{password}}'
-##                          WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname={{name}})
-##                          \gexec
-##                        - !unsafe >-
-##                          ALTER USER {{name}} WITH PASSWORD '{{password}}';
-                    - db_con_role_name: 'db-example-2'
-                      type: 'static-roles'
-                      connection_name: 'pgsql'
-                      method: 'absent'
-                      db_username: 'gitlab'
-#                      rotation_statements:
+###                        - !unsafe |
+###                          DO $$
+###                          BEGIN
+###                            IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '{{name}}') THEN
+###                              CREATE ROLE {{name}} WITH LOGIN PASSWORD '{{password}}';
+###                            END IF;
+###                          END$$;
 ##                        - !unsafe |
-##                          DO $$
-##                          BEGIN
-##                            IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '{{name}}') THEN
-##                              CREATE ROLE {{name}} WITH LOGIN PASSWORD '{{password}}';
-##                            END IF;
-##                          END$$;
-#                        - !unsafe |
-#                          ALTER USER {{name}} WITH PASSWORD '{{password}}';
+##                          ALTER USER {{name}} WITH PASSWORD '{{password}}';
 
         - name: Debug vault_role_definitions
           ansible.builtin.debug:

@@ -104,7 +104,7 @@
 - name: Process process_policy_entry
   vars:
     policy_name: "{{ policy_entry.key }}"
-    ns: "{{ policy_entry.value }}"
+    policy_ns: "{{ policy_entry.value }}"
   ansible.builtin.include_tasks: data_generator/_1_process_policy.yml
   loop: "{{ policy_dict | dict2items }}"
   loop_control:
@@ -114,7 +114,7 @@
   ansible.builtin.debug:
     var: create_ss
 
-- name: "Action {{ 'present' if create_ss == true else 'absent' }} store {{ resource_namespace }}/{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }} ({{ secret_store.ss_access_zone }})"
+- name: "Action {{ 'present' if create_ss == true else 'absent' }} store {{ resource_namespace }}/{{ resource_name }}-{{ version | default('v2') }}{{ postfix_map[secret_store.ss_access_zone] }} ({{ secret_store.ss_access_zone }})"
   kubernetes.core.k8s:
     state: "{{ 'present' if create_ss == true else 'absent' }}"
     apply: true
@@ -122,7 +122,7 @@
       apiVersion: external-secrets.io/v1beta1
       kind: "{{ secret_store.ss_access_zone }}"
       metadata:
-        name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
+        name: "{{ resource_name }}-{{ version | default('v2') }}{{ postfix_map[secret_store.ss_access_zone] }}"
         namespace: "{{ resource_namespace }}"
       spec:
         retrySettings:
@@ -130,7 +130,7 @@
         provider:
           vault:
             server: "{{ secret_store.server }}"
-            version: "v2"
+            version: "{{ version | default('v2') }}"
             namespace: "{{ resource_namespace }}"
             caProvider: "{{ _ca_provider }}"
             auth: "{{ _auth }}"

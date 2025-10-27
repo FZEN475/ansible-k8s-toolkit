@@ -3,9 +3,9 @@
   ansible.builtin.debug:
     var: policy_name
 
-- name: Debug ns
+- name: Debug policy_ns
   ansible.builtin.debug:
-    var: ns
+    var: policy_ns
 
 - name: Initialize _secret_data
   ansible.builtin.set_fact:
@@ -16,7 +16,7 @@
     ns_name: "{{ ns_entry.key }}"
     service: "{{ ns_entry.value }}"
   ansible.builtin.include_tasks: _2_process_ns.yml
-  loop: "{{ ns | dict2items }}"
+  loop: "{{ policy_ns | dict2items }}"
   loop_control:
     loop_var: ns_entry
 
@@ -37,7 +37,7 @@
       spec:
         refreshInterval: "1m"
         secretStoreRef:
-          name: "{{ resource_name }}{{ postfix_map[secret_store.ss_access_zone] }}"
+          name: "{{ resource_name }}-{{ version | default('v2') }}{{ postfix_map[secret_store.ss_access_zone] }}"
           kind: "{{ secret_store.ss_access_zone }}"
         target:
           name: "{{ policy_name }}-secrets"

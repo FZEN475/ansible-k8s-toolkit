@@ -56,6 +56,23 @@
   loop_control:
     loop_var: _policy_item
 
+- name: Get token from jwt
+  ansible.builtin.uri:
+    url: "{{ _auth.server }}/v1/auth/{{ _auth.mount_point }}/login"
+    ca_path: '/tmp/vault-ca.crt'
+    method: POST
+    follow_redirects: all
+    return_content: yes
+    body_format: json
+    body:
+      jwt: "{{ _auth.jwt_token }}"
+      role: "{{ _auth.role_id }}"
+  register: login_response
+
+- name: Vault token
+  ansible.builtin.set_fact:
+    _vault_token: "{{ login_response.json.auth.client_token }}"
+
 - name: Debug _policy_result_list
   ansible.builtin.debug:
     var: _policy_result_list
@@ -135,12 +152,29 @@
       ansible.builtin.set_fact:
         _vault_token: "{{ login_response.json.auth.client_token }}"
 
+    - name: Get exist role
+      ansible.builtin.uri:
+        url: "{{ _auth.server }}/v1/auth/{{ _role_mount_point | default('kubernetes') }}/role/{{ _role_name }}"
+        ca_path: '/tmp/vault-ca.crt'
+        method: GET
+        follow_redirects: all
+        return_content: yes
+        headers:
+          X-Vault-Token: "{{ _vault_token }}"
+        status_code: [200, 204, 404]
+      register: exist_role
+    
+    - name: Debug exist_role
+      ansible.builtin.debug:
+        var: exist_role
+
     - name: Generate _role_string
       ansible.builtin.set_fact:
         _role_string:
           bound_service_account_names: "{{ _role_sa }}"
           bound_service_account_namespaces: "{{ _role_sa_ns }}"
-          policies: "{{ _policy_result_list.keys() | list }}"
+          policies: >-
+            {{ (_policy_result_list.keys() | list) + (exist_role.json.data.policies | default([])) | unique }}
           max_ttl: 1800000
 
     - name: Debug _role_string
