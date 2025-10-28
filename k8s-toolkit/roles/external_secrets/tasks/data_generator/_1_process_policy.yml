@@ -47,3 +47,4 @@
             data: "{{ _secret_data.template_data | default(omit,true) }}"
             type: "{{ _secret_data.secret_type | default('Opaque',true) }}"
         data: "{{ _secret_data.get('list', []) }}"
+  when: not _secret_data.skip_secret
