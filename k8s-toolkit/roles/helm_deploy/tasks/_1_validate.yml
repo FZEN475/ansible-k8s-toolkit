@@ -25,7 +25,7 @@
           - item.url | trim | length > 0
         fail_msg: "Неправильный элемент: {{ item }}"
         success_msg: "Список репозиториев проверен успешно!"
-      loop: "{{ repo }}"
+      loop: "{{ repo | default([]) }}"
 
     - name: Проверка что каждый элемент содержит непустое repo_name и url
       ansible.builtin.assert:
@@ -33,4 +33,4 @@
           - item | trim | length > 0
         fail_msg: "Неправильный элемент: {{ item }} строка не должна быть пустой"
         success_msg: "Список values проверен успешно!"
-      loop: "{{ helm.values_files }}"
+      loop: "{{ helm.values_files | default([]) }}"
