@@ -117,7 +117,11 @@
     create_ss: true
     _secret_data: >-
       {{
-        (_secret_data | default({'secret_type': '','template_data': {}, 'list': []})) | combine({
+        (_secret_data | default({'skip_secret': false,'secret_type': '','template_data': {}, 'list': []})) | combine({
+          'skip_secret': (
+            _secret_data.get('skip_secret', false)
+              or (record_entry.extra_parameters | default({})).get('skip_secret', false)
+          ),
           'secret_type': (
             _secret_data.get('secret_type', '')
               or (record_entry.extra_parameters | default({})).get('secret_type', '')

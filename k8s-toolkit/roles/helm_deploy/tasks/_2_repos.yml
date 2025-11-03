@@ -1,0 +1,31 @@
+- name: Отфильтровать oci репозитории
+  set_fact:
+    repo_oci_list: "{{ repo | selectattr('url', 'match', '^oci://') | list }}"
+
+- name: Отфильтровать http/https репозитории
+  set_fact:
+    repo_url_list: "{{ repo | selectattr('url', 'match', '^https?://') | list }}"
+
+- name: Login to remote registry
+  kubernetes.core.helm_registry_auth:
+    host: "{{ item.url | regex_replace('^oci://([^/]+).*', '\\1') }}"
+    username: "{{ lookup('env', 'HELM_REPO_' + item.repo_name | upper + '_USER') | default(omit,true) }}"
+    password: "{{ lookup('env', 'HELM_REPO_' + item.repo_name | upper + '_PASSWORD') | default(omit,true) }}"
+    ca_file: "{{ common.ca_cert | default(omit,true) }}"
+    cert_file: "{{ item.cert_file | default(omit,true) }}"
+    key_file: "{{ item.key_file | default(omit,true) }}"
+    insecure: "{{ common.insecure_skip_tls_verify | default(false) }}"
+  loop: "{{ repo_oci_list }}"
+
+- name: Add stable chart repo gitlab
+  kubernetes.core.helm_repository:
+    repo_name: "{{ item.name }}"
+    repo_url: "{{ item.url }}"
+    repo_username: "{{ lookup('env', 'HELM_REPO_' + item.repo_name | upper + '_USER') | default(omit,true) }}"
+    repo_password: "{{ lookup('env', 'HELM_REPO_' + item.repo_name | upper + '_PASSWORD') | default(omit,true) }}"
+    ca_cert: "{{ common.ca_cert | default(omit,true) }}"
+    kubeconfig: "{{ common.kubeconfig | default(omit,true) }}"
+    context: "{{ common.context | default(omit,true) }}"
+    validate_certs: "{{ common.validate_certs | default(true) }}"
+    force_update: true
+  loop: "{{ repo_url_list }}"

@@ -1,0 +1,36 @@
+- name: Validate input parameters
+  block:
+#    - name: Validate kubernetes access
+#      assert:
+#        that:
+#          - common.kubeconfig is defined and common.kubeconfig | length > 0
+#        fail_msg: "Ошибка: требуется указать путь к common.kubeconfig"
+#        success_msg: "kubernetes access проверен успешно."
+    
+    - name: Validate release_name, release_namespace, chart_ref
+      assert:
+        that:
+          - helm.release_name is defined and helm.release_name | length > 0
+          - helm.release_namespace is defined and helm.release_namespace | length > 0
+          - helm.chart_ref is defined and helm.chart_ref | length > 0
+        fail_msg: "Ошибка: не заполнены основные поля: release_name, release_namespace и chart_ref "
+        success_msg: "Основные поля проверены успешно."
+
+    - name: Проверка что каждый элемент содержит непустое repo_name и url
+      ansible.builtin.assert:
+        that:
+          - item.repo_name is defined
+          - item.repo_name | trim | length > 0
+          - item.url is defined
+          - item.url | trim | length > 0
+        fail_msg: "Неправильный элемент: {{ item }}"
+        success_msg: "Список репозиториев проверен успешно!"
+      loop: "{{ repo }}"
+
+    - name: Проверка что каждый элемент содержит непустое repo_name и url
+      ansible.builtin.assert:
+        that:
+          - item | trim | length > 0
+        fail_msg: "Неправильный элемент: {{ item }} строка не должна быть пустой"
+        success_msg: "Список values проверен успешно!"
+      loop: "{{ helm.values_files }}"

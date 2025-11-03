@@ -1,0 +1,31 @@
+
+common:
+  kubeconfig: ""
+  context: ""
+  ca_cert: ""
+  insecure_skip_tls_verify: false
+  validate_certs: true
+  
+repo: 
+  - repo_name: ""
+    url: ""
+    cert_file: ""
+    key_file: ""
+
+helm:
+  clear_install: false
+
+  release_name: ""
+  release_namespace: ""
+  chart_ref: ""
+  release_state: present
+  atomic: false
+  wait: false
+  release_values: ""
+  chart_version: ""
+  force: false
+  timeout: "5m0s"
+  
+  dependency_update: true
+  
+  values_files: []

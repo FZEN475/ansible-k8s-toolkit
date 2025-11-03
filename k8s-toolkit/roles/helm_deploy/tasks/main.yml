@@ -1,0 +1,9 @@
+
+- name: Validate values
+  ansible.builtin.include_tasks: _1_validate.yml
+
+- name: Add repositories
+  ansible.builtin.include_tasks: _2_repos.yml
+  
+- name: Install chart
+  ansible.builtin.include_tasks: _3_install.yml

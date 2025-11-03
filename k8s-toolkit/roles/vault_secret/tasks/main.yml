@@ -12,7 +12,7 @@
         success_msg: "Параметры vault access проверены успешно."
 
     - name: Validate client access
-      assert:
+      ansible.builtin.assert:
         that:
           - client_access is defined and client_access | length > 0
           - client_access.role_name is defined and client_access.role_name | length > 0

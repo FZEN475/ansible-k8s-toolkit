@@ -1,0 +1,47 @@
+- name: Copy values
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/tmp/{{ item | basename }}"
+    mode: "0640"
+  loop: "{{ helm.values_files }}"
+  register: _values_files
+
+- name: Debug _values_files
+  ansible.builtin.debug:
+    var: _values_files
+
+- name: Render templates
+  kubernetes.core.helm_template:
+    chart_ref: stable/prometheus
+  register: result
+
+
+- name: "Remove {{ item.name }}"
+  kubernetes.core.helm:
+    release_name: "{{ helm.name }}"
+    release_namespace: "{{ helm.release_namespace }}"
+    chart_ref: "{{ helm.chart_ref }}"
+    release_state: "absent"
+    atomic: true
+    wait: true
+    force: true
+    timeout: "{{ helm.timeout }}"
+  when: helm.clear_install
+
+#- name: "Install {{ item.name }}"
+#  kubernetes.core.helm:
+#    release_name: "{{ helm.name }}"
+#    release_namespace: "{{ helm.release_namespace }}"
+#    chart_ref: "{{ helm.chart_ref }}"
+#    release_state: "{{ helm.release_state }}"
+#    atomic: "{{ helm.atomic }}"
+#    wait: "{{ helm.wait }}"
+#    release_values: "{{ helm.release_values }}"
+#    chart_version: "{{ helm.chart_version }}"
+#    force: "{{ helm.force }}"
+#    timeout: "{{ helm.timeout }}"
+#    dependency_update: "{{ helm.dependency_update }}"
+#    create_namespace: true
+#    values_files:
+#      - "/tmp/{{ item | basename }}"
+#  loop: "{{ helm.values_files }}"
