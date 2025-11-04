@@ -12,30 +12,41 @@
       - "item.url: {{ item.url }}"
       - "host: {{ item.url | regex_replace('^oci://([^/]+).*', '\\1') }}"
       - "repo_name: {{ item.repo_name }}"
+      - "{{ 'HELM_REPO_' + item.repo_name | upper + '_USER' }}"
       - "username: {{ lookup('env', 'HELM_REPO_' + item.repo_name | upper + '_USER') | default(omit,true) }}"
+      - "{{ 'HELM_REPO_' + item.repo_name | upper + '_PASSWORD' }}"
       - "password: {{ lookup('env', 'HELM_REPO_' + item.repo_name | upper + '_PASSWORD') | default(omit,true) }}"
-      - "ca_file: {{ common.ca_cert | default('omit') }}"
-      - "cert_file: {{ item.cert_file | default('omit') }}"
-      - "key_file: {{ item.key_file | default('omit') }}"
+      - "ca_file: {{ common.ca_cert | default(omit,true) }}"
+      - "cert_file: {{ item.cert_file | default(omit,true) }}"
+      - "key_file: {{ item.key_file | default(omit,true) }}"
       - "insecure: {{ common.insecure_skip_tls_verify | default(false) }}"
   loop: "{{ repo_oci_list }}"
   loop_control:
     label: "{{ item.repo_name }}"
 
-- name: Show all environment variables (pretty print)
-  debug:
-    msg: "{{ query('env', '') | dict2items }}"
-
 - name: Login to remote registry
   kubernetes.core.helm_registry_auth:
-    host: "{{ item.url | regex_replace('^oci://([^/]+).*', '\\1') }}"
-    username: "{{ lookup('env', 'HELM_REPO_' + item.repo_name | upper + '_USER') }}"
-    password: "{{ lookup('env', 'HELM_REPO_' + item.repo_name | upper + '_PASSWORD') }}"
-    ca_file: "{{ common.ca_cert }}"
-    cert_file: "{{ item.cert_file }}"
-    key_file: "{{ item.key_file }}"
-    insecure: "{{ common.insecure_skip_tls_verify }}"
+    host: "{{ registry_host }}"
+    username: "{{ registry_username }}"
+    password: "{{ registry_password }}"
+    ca_file: "{{ common.ca_cert | default(omit, true) }}"
+    cert_file: "{{ item.cert_file | default(omit, true) }}"
+    key_file: "{{ item.key_file | default(omit, true) }}"
+    insecure: "{{ common.insecure_skip_tls_verify | default(false) }}"
   loop: "{{ repo_oci_list }}"
+  loop_control:
+    loop_var: item
+  vars:
+    registry_host: "{{ item.url | regex_replace('^oci://([^/]+).*', '\\1') }}"
+    registry_username: >-
+      {{ lookup('env', 'HELM_REPO_' +
+      (item.repo_name | regex_replace('[^A-Za-z0-9]', '_') | upper) +
+      '_USER') | default('', true) }}
+    registry_password: >-
+      {{ lookup('env', 'HELM_REPO_' +
+      (item.repo_name | regex_replace('[^A-Za-z0-9]', '_') | upper) +
+      '_PASSWORD') | default('', true) }}
+  when: registry_host != '' and registry_username != '' and registry_password != ''
 
 - name: Add stable chart repo gitlab
   kubernetes.core.helm_repository:

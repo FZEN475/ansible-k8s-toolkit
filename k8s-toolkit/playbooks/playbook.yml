@@ -1,6 +1,8 @@
 
 - hosts: test
   gather_facts: yes
+  collections:
+    - kubernetes.core:6.1.0
   tasks:
 
 #    - name: Пример расширения диска после добавления памяти в esxi
@@ -14,51 +16,66 @@
 #    - name: Клонирование репозитория по ssh
 #      include_role:
 #        name: library.k8s_toolkit.git_clone
+    
+    - name: Тест deploy helm
+      include_role:
+        name: library.k8s_toolkit.helm_deploy
+      vars:
+        repo:
+          - repo_name: "csi-local"
+            url: "oci://gitlab-registry.gitlab.svc:5000/infra-gitops/provisioners/csi-local/charts/local-path-provisioner"
+        helm:
+          clear_install: true
+          release_name: "csi-local"
+          release_namespace: "provisioners"
+          chart_ref: "csi-local/local-path-provisioner"
+          atomic: true
+          wait: true
 
-    - name: Update action
-      block:
-
-        - name: Vault kv2 secrets
-          include_role:
-            name: library.k8s_toolkit.vault_secret
-          vars:
-            vault_access:
-              server_url: 'https://vault.secrets.svc:8200'
-              kubernetes_service_account: 'vault-sa'
-              role_with_access: 'vault-manager'
-            client_access:
-              role_name: 'test' # resource_name
-              kubernetes_service_account: 'gitlab-sa'
-              kubernetes_service_account_namespace: 'gitlab'
-              policy_list: #[]
-                - _policy_name: 'delete-me-1'
-                  _kv2_extra_path:
-                    - engine_mount_point: 'test'
-                      service: "test"
-                      name: 'test'
-                      key_list:
-                        - name: 'test'
-
-        - name: Vault kv2 secrets
-          include_role:
-            name: library.k8s_toolkit.vault_secret
-          vars:
-            vault_access:
-              server_url: 'https://vault.secrets.svc:8200'
-              kubernetes_service_account: 'vault-sa'
-              role_with_access: 'vault-manager'
-            client_access:
-              role_name: 'test' # resource_name
-              kubernetes_service_account: 'gitlab-sa'
-              kubernetes_service_account_namespace: 'gitlab'
-              policy_list: #[]
-                - _policy_name: 'delete-me-2'
-                  _kv2_extra_path:
-                    - engine_mount_point: 'test'
-                      service: "test"
-                      name: 'test'
-                      key_list:
-                        - name: 'test'
+#    - name: Update action
+#      block:
+#
+#        - name: Vault kv2 secrets
+#          include_role:
+#            name: library.k8s_toolkit.vault_secret
+#          vars:
+#            vault_access:
+#              server_url: 'https://vault.secrets.svc:8200'
+#              kubernetes_service_account: 'vault-sa'
+#              role_with_access: 'vault-manager'
+#            client_access:
+#              role_name: 'test' # resource_name
+#              kubernetes_service_account: 'gitlab-sa'
+#              kubernetes_service_account_namespace: 'gitlab'
+#              policy_list: #[]
+#                - _policy_name: 'delete-me-1'
+#                  _kv2_extra_path:
+#                    - engine_mount_point: 'test'
+#                      service: "test"
+#                      name: 'test'
+#                      key_list:
+#                        - name: 'test'
+#
+#        - name: Vault kv2 secrets
+#          include_role:
+#            name: library.k8s_toolkit.vault_secret
+#          vars:
+#            vault_access:
+#              server_url: 'https://vault.secrets.svc:8200'
+#              kubernetes_service_account: 'vault-sa'
+#              role_with_access: 'vault-manager'
+#            client_access:
+#              role_name: 'test' # resource_name
+#              kubernetes_service_account: 'gitlab-sa'
+#              kubernetes_service_account_namespace: 'gitlab'
+#              policy_list: #[]
+#                - _policy_name: 'delete-me-2'
+#                  _kv2_extra_path:
+#                    - engine_mount_point: 'test'
+#                      service: "test"
+#                      name: 'test'
+#                      key_list:
+#                        - name: 'test'
 
 #        - name: Пример создания секрета
 #          include_role:
@@ -147,9 +164,9 @@
 ##                        - !unsafe |
 ##                          ALTER USER {{name}} WITH PASSWORD '{{password}}';
 
-        - name: Debug vault_role_definitions
-          ansible.builtin.debug:
-            var: vault_role_definitions
+#        - name: Debug vault_role_definitions
+#          ansible.builtin.debug:
+#            var: vault_role_definitions
 
 #        - name: Test vault_role_definitions
 #          ansible.builtin.set_fact:

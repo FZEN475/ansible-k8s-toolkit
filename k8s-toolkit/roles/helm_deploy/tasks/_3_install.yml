@@ -3,7 +3,7 @@
     src: "{{ item }}"
     dest: "/tmp/{{ item | basename }}"
     mode: "0640"
-  loop: "{{ helm.values_files }}"
+  loop: "{{ helm.values_files | default([]) }}"
   register: _values_files
 
 - name: Debug _values_files
@@ -12,9 +12,13 @@
 
 - name: Render templates
   kubernetes.core.helm_template:
-    chart_ref: stable/prometheus
+    chart_ref: "{{ item.url }}"
   register: result
+  loop: "{{ repo_oci_list }}"
 
+- name: Debug result
+  ansible.builtin.debug:
+    var: result
 
 - name: "Remove {{ item.name }}"
   kubernetes.core.helm:
