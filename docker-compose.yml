@@ -6,7 +6,7 @@ services:
     environment:
       ANSIBLE_COLLECTION_PATH: "k8s-toolkit"
       ANSIBLE_COLLECTION_URL: ""
-      ANSIBLE_COLLECTION_REQUIREMENTS_FILE: "requirements.yml"
+      ANSIBLE_COLLECTION_REQUIREMENTS_FILE: ""
       ANSIBLE_COLLECTION_EXTRA_FLAGS: "--ignore-certs"
       ANSIBLE_COLLECTION_ACCESS_TOKEN: ${ANSIBLE_COLLECTION_ACCESS_TOKEN}
 
@@ -16,7 +16,7 @@ services:
       ANSIBLE_PLAYBOOK_OR_COLLECTION: "library.k8s_toolkit.playbook"
       ANSIBLE_INVENTORY_FILES_OR_URLS: "inventory.json,structure.yaml"
       ANSIBLE_PRIVATE_KEY: "/root/.ssh/id_ed25519"
-      ANSIBLE_EXTRA_FLAGS: "-vvv"
+      ANSIBLE_EXTRA_FLAGS: ""
     volumes:
       - /tmp/ansible-k8s-toolkit:/source
     secrets:

@@ -6,9 +6,9 @@
   loop: "{{ helm.values_files | default([]) }}"
   register: _values_files
 
-- name: Debug _values_files
-  ansible.builtin.debug:
-    var: _values_files
+- name: List file path
+  ansible.builtin.set_fact:
+    __values_files: "{{ _values_files.results | map(attribute='dest') | list }}"
 
 - name: Render templates
   kubernetes.core.helm_template:
@@ -16,36 +16,30 @@
   register: result
   loop: "{{ repo_oci_list }}"
 
-- name: Debug result
-  ansible.builtin.debug:
-    var: result
-
-- name: "Remove {{ item.name }}"
+- name: "Remove chart"
   kubernetes.core.helm:
-    release_name: "{{ helm.name }}"
+    release_name: "{{ helm.release_name }}"
     release_namespace: "{{ helm.release_namespace }}"
     chart_ref: "{{ helm.chart_ref }}"
     release_state: "absent"
     atomic: true
     wait: true
     force: true
-    timeout: "{{ helm.timeout }}"
+    timeout: "{{ helm.timeout | default('5m0s') }}"
   when: helm.clear_install
 
-#- name: "Install {{ item.name }}"
-#  kubernetes.core.helm:
-#    release_name: "{{ helm.name }}"
-#    release_namespace: "{{ helm.release_namespace }}"
-#    chart_ref: "{{ helm.chart_ref }}"
-#    release_state: "{{ helm.release_state }}"
-#    atomic: "{{ helm.atomic }}"
-#    wait: "{{ helm.wait }}"
-#    release_values: "{{ helm.release_values }}"
-#    chart_version: "{{ helm.chart_version }}"
-#    force: "{{ helm.force }}"
-#    timeout: "{{ helm.timeout }}"
-#    dependency_update: "{{ helm.dependency_update }}"
-#    create_namespace: true
-#    values_files:
-#      - "/tmp/{{ item | basename }}"
-#  loop: "{{ helm.values_files }}"
+- name: "Install chart"
+  kubernetes.core.helm:
+    release_name: "{{ helm.release_name }}"
+    release_namespace: "{{ helm.release_namespace }}"
+    chart_ref: "{{ helm.chart_ref }}"
+    release_state: "{{ helm.release_state | default('present') }}"
+    atomic: "{{ helm.atomic | default(false) }}"
+    wait: "{{ helm.wait | default(false) }}"
+    release_values: "{{ helm.release_values | default(omit,true) }}"
+    chart_version: "{{ helm.chart_version | default(omit,true) }}"
+    force: "{{ helm.force | default(false) }}"
+    timeout: "{{ helm.timeout | default('5m0s') }}"
+    dependency_update: "{{ helm.dependency_update | default(false) }}"
+    create_namespace: true
+    values_files: "{{ __values_files | default([]) }}"

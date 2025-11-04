@@ -22,13 +22,13 @@
         name: library.k8s_toolkit.helm_deploy
       vars:
         repo:
-          - repo_name: "csi-local"
-            url: "oci://gitlab-registry.gitlab.svc:5000/infra-gitops/provisioners/csi-local/charts/local-path-provisioner"
+          - repo_name: 'csi-local'
+            url: 'oci://gitlab-registry.gitlab.svc:5000/infra-gitops/provisioners/csi-local/charts/local-path-provisioner'
         helm:
           clear_install: true
-          release_name: "csi-local"
-          release_namespace: "provisioners"
-          chart_ref: "csi-local/local-path-provisioner"
+          release_name: 'csi-local'
+          release_namespace: 'provisioners'
+          chart_ref: 'oci://gitlab-registry.gitlab.svc:5000/infra-gitops/provisioners/csi-local/charts/local-path-provisioner'
           atomic: true
           wait: true
 
