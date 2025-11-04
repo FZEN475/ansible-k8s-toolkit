@@ -12,8 +12,8 @@
       - "item.url: {{ item.url }}"
       - "host: {{ item.url | regex_replace('^oci://([^/]+).*', '\\1') }}"
       - "repo_name: {{ item.repo_name }}"
-      - "username: {{ lookup('env', 'HELM_REPO_' + item.repo_name | upper + '_USER') }}"
-      - "password: {{ lookup('env', 'HELM_REPO_' + item.repo_name | upper + '_PASSWORD') }}"
+      - "username: {{ lookup('env', 'HELM_REPO_' + item.repo_name | upper + '_USER') | default(omit,true) }}"
+      - "password: {{ lookup('env', 'HELM_REPO_' + item.repo_name | upper + '_PASSWORD') | default(omit,true) }}"
       - "ca_file: {{ common.ca_cert | default('omit') }}"
       - "cert_file: {{ item.cert_file | default('omit') }}"
       - "key_file: {{ item.key_file | default('omit') }}"
@@ -22,20 +22,19 @@
   loop_control:
     label: "{{ item.repo_name }}"
 
-- name: Debug only HELM_REPO_* variables
+- name: Show all environment variables (pretty print)
   debug:
-    msg: "{{ lookup('env', item) }}"
-  loop: "{{ query('env', '').keys() | select('match', '^HELM_REPO_') | list }}"
+    msg: "{{ query('env', '') | dict2items }}"
 
 - name: Login to remote registry
   kubernetes.core.helm_registry_auth:
     host: "{{ item.url | regex_replace('^oci://([^/]+).*', '\\1') }}"
-    username: "{{ lookup('env', 'HELM_REPO_' + item.repo_name | upper + '_USER') | default(omit,true) }}"
-    password: "{{ lookup('env', 'HELM_REPO_' + item.repo_name | upper + '_PASSWORD') | default(omit,true) }}"
-    ca_file: "{{ common.ca_cert | default(omit,true) }}"
-    cert_file: "{{ item.cert_file | default(omit,true) }}"
-    key_file: "{{ item.key_file | default(omit,true) }}"
-    insecure: "{{ common.insecure_skip_tls_verify | default(false) }}"
+    username: "{{ lookup('env', 'HELM_REPO_' + item.repo_name | upper + '_USER') }}"
+    password: "{{ lookup('env', 'HELM_REPO_' + item.repo_name | upper + '_PASSWORD') }}"
+    ca_file: "{{ common.ca_cert }}"
+    cert_file: "{{ item.cert_file }}"
+    key_file: "{{ item.key_file }}"
+    insecure: "{{ common.insecure_skip_tls_verify }}"
   loop: "{{ repo_oci_list }}"
 
 - name: Add stable chart repo gitlab
