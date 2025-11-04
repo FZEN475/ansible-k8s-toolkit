@@ -1,6 +1,6 @@
 services:
   ansible:
-    image: ghcr.io/fzen475/ansible-dev-image:latest
+    image: ghcr.io/fzen475/ansible-test-local:latest
     container_name: ansible-k8s-toolkit
     env_file: ./.env
     environment:

@@ -6,6 +6,27 @@
   set_fact:
     repo_url_list: "{{ repo | selectattr('url', 'match', '^https?://') | list }}"
 
+- name: Debug item values
+  debug:
+    msg:
+      - "item.url: {{ item.url }}"
+      - "host: {{ item.url | regex_replace('^oci://([^/]+).*', '\\1') }}"
+      - "repo_name: {{ item.repo_name }}"
+      - "username: {{ lookup('env', 'HELM_REPO_' + item.repo_name | upper + '_USER') }}"
+      - "password: {{ lookup('env', 'HELM_REPO_' + item.repo_name | upper + '_PASSWORD') }}"
+      - "ca_file: {{ common.ca_cert | default('omit') }}"
+      - "cert_file: {{ item.cert_file | default('omit') }}"
+      - "key_file: {{ item.key_file | default('omit') }}"
+      - "insecure: {{ common.insecure_skip_tls_verify | default(false) }}"
+  loop: "{{ repo_oci_list }}"
+  loop_control:
+    label: "{{ item.repo_name }}"
+
+- name: Debug only HELM_REPO_* variables
+  debug:
+    msg: "{{ lookup('env', item) }}"
+  loop: "{{ query('env', '').keys() | select('match', '^HELM_REPO_') | list }}"
+
 - name: Login to remote registry
   kubernetes.core.helm_registry_auth:
     host: "{{ item.url | regex_replace('^oci://([^/]+).*', '\\1') }}"
